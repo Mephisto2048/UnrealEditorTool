@@ -4,8 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "AssetActionUtility.h"
-#include "QuickAssetActionUtility.generated.h"
 
+
+#include "Materials/Material.h"
+#include "Materials/MaterialinstanceConstant.h"
+#include "Sound/SoundCue.h"
+#include "Sound/SoundWave.h"
+#include "Engine/Texture.h"
+#include "Blueprint/UserWidget.h"   //UMG
+#include "Components/SkeletalMeshComponent.h"
+#include "NiagaraSystem.h"    //Niagara
+#include "NiagaraEmitter.h"
+
+#include "QuickAssetActionUtility.generated.h"
 /**
  * 
  */
@@ -26,6 +37,19 @@ public:
 private:
 	TMap<UClass*, FString>PrefixMap =
 	{
-		{UBlueprint::StaticClass(), TEXT("BP_")}
+		{UBlueprint::StaticClass(), TEXT("BP_")},
+		{UStaticMesh::StaticClass(),TEXT("SM_")},
+		{UMaterial::StaticClass(), TEXT("M_")},
+		{UMaterialInstanceConstant::StaticClass(),TEXT("MI_")},
+		{UMaterialFunctionInterface::StaticClass(), TEXT("MF_")},
+	
+		{USoundCue::StaticClass(), TEXT("SC_")},
+		{USoundWave::StaticClass(), TEXT("SW_")},
+		{UTexture::StaticClass(), TEXT("T_")},
+		{UTexture2D::StaticClass(), TEXT("T_")},
+		{UUserWidget::StaticClass(), TEXT("WBP_")},
+		{USkeletalMeshComponent::StaticClass(), TEXT("SK_")},
+		{UNiagaraSystem::StaticClass(), TEXT("NS_")},
+		{UNiagaraEmitter::StaticClass(), TEXT("NE_")}
 	};
 };

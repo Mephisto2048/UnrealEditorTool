@@ -5,11 +5,10 @@
 #include"DebugUtil.h"
 #include"EditorUtilityLibrary.h"
 #include"EditorAssetLibrary.h"
-#include"Widgets/Notifications/SNotificationList.h"    //定义notify
-#include"Framework/Notifications/NotificationManager.h"    //将notify添加到编辑器
+
 void UQuickAssetActionUtility::TestPrint()
 {
-	Print();
+	Print(TEXT("debug_print"));
 }
 
 void UQuickAssetActionUtility::TestMessageDialog()
@@ -26,5 +25,50 @@ void UQuickAssetActionUtility::TestNotification()
 void UQuickAssetActionUtility::AutoPrefix()
 {
 	TArray<UObject*>SelectedObjects = UEditorUtilityLibrary::GetSelectedAssets();
+	uint32 Counter = 0;
+	for(UObject* SelectedObject:SelectedObjects)
+	{
+		if(!SelectedObject)continue;
+		
+		FString* PrefixFound = PrefixMap.Find(SelectedObject->GetClass());
+		
+		if(!PrefixFound)
+		{
+			Print(SelectedObject->GetName()+TEXT("`s class is not found"));
+			continue;
+		}
+		else if(PrefixFound->IsEmpty())
+		{
+			Print(SelectedObject->GetName()+TEXT("`s class is empty"));
+			continue;
+		}
+		
+		FString OldName = SelectedObject->GetName();
+		
+		if(OldName.StartsWith(*PrefixFound))
+		{
+			Print(OldName + TEXT(" has current prefix"));
+			continue;
+		}
+
+		const FString NewName = *PrefixFound + OldName;
+
+		UEditorUtilityLibrary::RenameAsset(SelectedObject,NewName);
+
+		Counter++;
+	}
+	
+	if(Counter > 0)
+	{
+		ShowNotify(TEXT("Successfully rename" + FString::FromInt(Counter)  ));
+	}
+
+
+
+
+
+	
+
+	
 }
 
