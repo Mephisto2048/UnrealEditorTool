@@ -34,6 +34,11 @@ public:
 
 	UFUNCTION(CallInEditor)
 	void AutoPrefix();
+	UFUNCTION(CallInEditor)
+	void DeleteUnusedAssets();
+
+	
+	void FixUpRedirectors();
 private:
 	TMap<UClass*, FString>PrefixMap =
 	{

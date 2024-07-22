@@ -25,7 +25,7 @@ public class MfstManager : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core","Blutility","EditorScriptingUtilities" , "Niagara" , "UMG"
+				"Core","Blutility","EditorScriptingUtilities" , "Niagara" , "UMG","UnrealEd"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
