@@ -15,6 +15,10 @@ void FMfstManagerModule::ShutdownModule()
 	// we call this function before unloading the module.
 }
 
+void FMfstManagerModule::InitContentBrowserMenuExtension()
+{
+}
+
 #undef LOCTEXT_NAMESPACE
 	
 IMPLEMENT_MODULE(FMfstManagerModule, MfstManager)
