@@ -91,6 +91,42 @@ bool UQuickMaterialCreateWidget::ProcessSelectedData(const TArray<FAssetData>& S
 		if(!bCustomMaterialName && !bMaterialNameSet)
 		{
 			MaterialName = SelectedAsset->GetName();
+			/* 材质名称移除纹理的后缀 */
+			for(const FString& BaseColorName:BaseColorNameArray)
+			{
+				if(SelectedAsset->GetName().EndsWith(BaseColorName))
+				{
+					MaterialName.RemoveFromEnd(BaseColorName);
+				}
+			}
+			for(const FString& NormalName:NormalNameArray)
+			{
+				if(SelectedAsset->GetName().EndsWith(NormalName))
+				{
+					MaterialName.RemoveFromEnd(NormalName);
+				}
+			}
+			for(const FString& RoughnessName:RoughnessNameArray)
+			{
+				if(SelectedAsset->GetName().EndsWith(RoughnessName))
+				{
+					MaterialName.RemoveFromEnd(RoughnessName);
+				}
+			}
+			for(const FString& AOName:AONameArray)
+			{
+				if(SelectedAsset->GetName().EndsWith(AOName))
+				{
+					MaterialName.RemoveFromEnd(AOName);
+				}
+			}
+			for(const FString& PackedName:PackedNameArray)
+			{
+				if(SelectedAsset->GetName().EndsWith(PackedName))
+				{
+					MaterialName.RemoveFromEnd(PackedName);
+				}
+			}
 			MaterialName.RemoveFromStart(TEXT("T_"));
 			MaterialName.InsertAt(0,TEXT("M_"));
 			bMaterialNameSet = true;
@@ -151,7 +187,7 @@ void UQuickMaterialCreateWidget::CreateMaterialNodes(UMaterial* Material,
 		}
 	}
 	/* Normal */
-	if(!Material->HasNormalConnected())    //basecolor插槽没有连接则继续
+	if(!Material->HasNormalConnected())    
 	{
 		if(ConnectNormalPin(TextureSampleNode,Texture,Material))
 		{
@@ -160,7 +196,19 @@ void UQuickMaterialCreateWidget::CreateMaterialNodes(UMaterial* Material,
 		}
 	}
 	/* Roughness */
+	//TODO:
 	/* ao */
+	//TODO:
+	/* AR */
+	//在最后检查AR贴图
+	if(!Material->HasRoughnessConnected() && !Material->HasAmbientOcclusionConnected())    
+	{
+		if(ConnectARPin(TextureSampleNode,Texture,Material))
+		{
+			PinsCount++;
+			return;
+		}
+	}
 	MaterialName = TEXT("M_");
 }
 
@@ -169,7 +217,7 @@ bool UQuickMaterialCreateWidget::ConnectBaseColorPin(
 {
 	for(const FString& BaseColorName:BaseColorNameArray)
 	{
-		if(Texture->GetName().Contains(BaseColorName))
+		if(Texture->GetName().EndsWith(BaseColorName))
 		{
 			//设置节点采样的纹理
 			TextureSampleNode->Texture = Texture;
@@ -218,5 +266,37 @@ bool UQuickMaterialCreateWidget::ConnectNormalPin(UMaterialExpressionTextureSamp
 bool UQuickMaterialCreateWidget::ConnectRoughnessPin(UMaterialExpressionTextureSample* TextureSampleNode,
 	UTexture2D* Texture, UMaterial* Material)
 {
+	return false;
+}
+
+bool UQuickMaterialCreateWidget::ConnectARPin(UMaterialExpressionTextureSample* TextureSampleNode, UTexture2D* Texture,
+	UMaterial* Material)
+{
+	for(const FString& PackedName:PackedNameArray)
+	{
+		if(Texture->GetName().Contains(PackedName))
+		{
+			//纹理设置
+			Texture->CompressionSettings = TC_Default;
+			Texture->SRGB = false;
+			Texture->PostEditChange();
+			
+			TextureSampleNode->Texture = Texture;
+			TextureSampleNode->SamplerType = SAMPLERTYPE_LinearColor;
+			
+			Material->GetExpressionCollection().AddExpression(TextureSampleNode);
+			
+			Material->GetExpressionInputForProperty(MP_AmbientOcclusion)
+				->Connect(1,TextureSampleNode);
+			Material->GetExpressionInputForProperty(MP_Roughness)
+				->Connect(2,TextureSampleNode);
+			
+			Material->PostEditChange();
+
+			TextureSampleNode->MaterialExpressionEditorX -= 600;
+			TextureSampleNode->MaterialExpressionEditorY += 600;
+			return true;
+		}
+	}
 	return false;
 }

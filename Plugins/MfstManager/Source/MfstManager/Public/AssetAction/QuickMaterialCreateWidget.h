@@ -42,6 +42,18 @@ public:
 		TEXT("_rough"),
 		TEXT("_roughness"),
 	};
+	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category = "Supported Texture Names")
+	TArray<FString> AONameArray = {
+		TEXT("_ao"),
+		TEXT("_ambientocclusion"),
+		TEXT("_AmbientOcclusion"),
+		TEXT("_A"),
+	};
+	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category = "Supported Texture Names")
+	TArray<FString> PackedNameArray = {
+		TEXT("_AR"),
+		TEXT("_OR"),
+	};
 private:
 	bool ProcessSelectedData(const TArray<FAssetData>& SelectedData,TArray<UTexture2D*>& OutTexturesArray,FString& OutTexturesPath);
 	bool CheckName(const FString& PackagePath,const FString& MaterialName);
@@ -51,4 +63,6 @@ private:
 	bool ConnectBaseColorPin(UMaterialExpressionTextureSample* TextureSampleNode,UTexture2D* Texture,UMaterial* Material);
 	bool ConnectNormalPin(UMaterialExpressionTextureSample* TextureSampleNode,UTexture2D* Texture,UMaterial* Material);
 	bool ConnectRoughnessPin(UMaterialExpressionTextureSample* TextureSampleNode,UTexture2D* Texture,UMaterial* Material);
+	bool ConnectAOPin(UMaterialExpressionTextureSample* TextureSampleNode,UTexture2D* Texture,UMaterial* Material);
+	bool ConnectARPin(UMaterialExpressionTextureSample* TextureSampleNode,UTexture2D* Texture,UMaterial* Material);
 };
