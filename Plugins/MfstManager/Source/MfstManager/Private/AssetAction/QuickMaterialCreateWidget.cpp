@@ -4,11 +4,13 @@
 #include "AssetAction/QuickMaterialCreateWidget.h"
 
 #include "AssetToolsModule.h"
-#include"DebugUtil.h"
+#include "DebugUtil.h"
 #include "EditorAssetLibrary.h"
 #include "EditorUtilityLibrary.h"
 #include "Factories/MaterialFactoryNew.h"
+#include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Materials/MaterialExpressionTextureSample.h"
+#include "Materials/MaterialinstanceConstant.h"
 
 void UQuickMaterialCreateWidget::CreateMaterialFromSelectedTextures()
 {
@@ -26,13 +28,18 @@ void UQuickMaterialCreateWidget::CreateMaterialFromSelectedTextures()
 	FString TexturesPath;
 	
 	/* Process Selected Data */
-	if(!ProcessSelectedData(SelectedAssetsData,TexturesArray,TexturesPath)) return;
+	if(!ProcessSelectedData(SelectedAssetsData,TexturesArray,TexturesPath))
+	{
+		//把MaterialName设置为默认值
+		MaterialName = TEXT("M_");
+		return;
+	}
 	if(TexturesArray.IsEmpty())
 	{
 		DebugUtil::MessageDialog(TEXT("TexturesArray is empty"));
 		return;
 	}
-	if (!CheckName(TexturesPath,MaterialName))return;
+	if (!CheckName(TexturesPath,MaterialName)){MaterialName = TEXT("M_");return;}
 
 	UMaterial* CreatedMaterial = CreateMaterialAsset(MaterialName,TexturesPath);
 	if(!CreatedMaterial)
@@ -47,11 +54,18 @@ void UQuickMaterialCreateWidget::CreateMaterialFromSelectedTextures()
 		CreateMaterialNodes(CreatedMaterial,TextureInArray,PinsCount);
 	}
 	
-
 	if(PinsCount > 0)
 	{
 		DebugUtil::ShowNotify(FString::FromInt(PinsCount) + TEXT(" Textures is Connected"));
 	}
+
+	//创建材质实例
+	if(bCreateMaterialInstance)
+	{
+		CreateMaterialInstance(CreatedMaterial,MaterialName,TexturesPath);
+	}
+	
+	MaterialName = TEXT("M_");
 }
 
 bool UQuickMaterialCreateWidget::ProcessSelectedData(const TArray<FAssetData>& SelectedAssetsData,
@@ -169,8 +183,36 @@ UMaterial* UQuickMaterialCreateWidget::CreateMaterialAsset(const FString& Name, 
 	
 	return Cast<UMaterial>(CreatedObject);
 }
+
+UMaterialInstanceConstant* UQuickMaterialCreateWidget::CreateMaterialInstance(UMaterial* Material,FString& Name, const FString& Path)
+{
+	Name.RemoveFromStart(TEXT("M_"));
+	Name.InsertAt(0,TEXT("MI_"));
+	//加载创建材质所需的模块
+	FAssetToolsModule& AssetToolsModule =
+		FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+
+	UMaterialInstanceConstantFactoryNew* MaterialFactory = NewObject<UMaterialInstanceConstantFactoryNew>();
+	
+	//创建资产
+	UObject* CreatedObject =
+		AssetToolsModule.Get().CreateAsset(Name,Path,UMaterialInstanceConstant::StaticClass(),MaterialFactory);
+	
+	//指定母材质
+	if(UMaterialInstanceConstant* CreatedMI = Cast<UMaterialInstanceConstant>(CreatedObject))
+	{
+		CreatedMI->SetParentEditorOnly(Material);
+		//为啥要加这两句
+		CreatedMI->PostEditChange();
+		Material->PostEditChange();
+
+		return CreatedMI;
+	}
+	return nullptr;
+}
+
 void UQuickMaterialCreateWidget::CreateMaterialNodes(UMaterial* Material,
-	UTexture2D* Texture, uint32& PinsCount)
+                                                     UTexture2D* Texture, uint32& PinsCount)
 {
 	//在参数Material中创建TextureSample节点
 	UMaterialExpressionTextureSample* TextureSampleNode =
@@ -197,8 +239,24 @@ void UQuickMaterialCreateWidget::CreateMaterialNodes(UMaterial* Material,
 	}
 	/* Roughness */
 	//TODO:
+	if(!Material->HasRoughnessConnected())    
+	{
+		if(ConnectRoughnessPin(TextureSampleNode,Texture,Material))
+		{
+			PinsCount++;
+			return;
+		}
+	}
 	/* ao */
 	//TODO:
+	if(!Material->HasAmbientOcclusionConnected())    
+	{
+		if(ConnectAOPin(TextureSampleNode,Texture,Material))
+		{
+			PinsCount++;
+			return;
+		}
+	}
 	/* AR */
 	//在最后检查AR贴图
 	if(!Material->HasRoughnessConnected() && !Material->HasAmbientOcclusionConnected())    
@@ -209,7 +267,7 @@ void UQuickMaterialCreateWidget::CreateMaterialNodes(UMaterial* Material,
 			return;
 		}
 	}
-	MaterialName = TEXT("M_");
+	
 }
 
 bool UQuickMaterialCreateWidget::ConnectBaseColorPin(
@@ -241,7 +299,7 @@ bool UQuickMaterialCreateWidget::ConnectNormalPin(UMaterialExpressionTextureSamp
 {
 	for(const FString& NormalName:NormalNameArray)
 	{
-		if(Texture->GetName().Contains(NormalName))
+		if(Texture->GetName().EndsWith(NormalName))
 		{
 			//纹理设置
 			Texture->CompressionSettings = TC_Normalmap;
@@ -266,15 +324,69 @@ bool UQuickMaterialCreateWidget::ConnectNormalPin(UMaterialExpressionTextureSamp
 bool UQuickMaterialCreateWidget::ConnectRoughnessPin(UMaterialExpressionTextureSample* TextureSampleNode,
 	UTexture2D* Texture, UMaterial* Material)
 {
+	for(const FString& RoughnessName:RoughnessNameArray)
+	{
+		if(Texture->GetName().EndsWith(RoughnessName))
+		{
+			//纹理设置
+			Texture->CompressionSettings = TC_Default;
+			Texture->SRGB = false;
+			Texture->PostEditChange();
+			
+			TextureSampleNode->Texture = Texture;
+			TextureSampleNode->SamplerType = SAMPLERTYPE_LinearColor;
+			
+			Material->GetExpressionCollection().AddExpression(TextureSampleNode);
+			
+			Material->GetExpressionInputForProperty(MP_Roughness)
+				->Connect(1,TextureSampleNode);
+			
+			Material->PostEditChange();
+
+			TextureSampleNode->MaterialExpressionEditorX -= 600;
+			TextureSampleNode->MaterialExpressionEditorY += 300;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UQuickMaterialCreateWidget::ConnectAOPin(UMaterialExpressionTextureSample* TextureSampleNode, UTexture2D* Texture,
+	UMaterial* Material)
+{
+	for(const FString& AOName:AONameArray)
+	{
+		if(Texture->GetName().EndsWith(AOName))
+		{
+			//纹理设置
+			Texture->CompressionSettings = TC_Default;
+			Texture->SRGB = false;
+			Texture->PostEditChange();
+			
+			TextureSampleNode->Texture = Texture;
+			TextureSampleNode->SamplerType = SAMPLERTYPE_LinearColor;
+			
+			Material->GetExpressionCollection().AddExpression(TextureSampleNode);
+			
+			Material->GetExpressionInputForProperty(MP_AmbientOcclusion)
+				->Connect(1,TextureSampleNode);
+			
+			Material->PostEditChange();
+
+			TextureSampleNode->MaterialExpressionEditorX -= 600;
+			TextureSampleNode->MaterialExpressionEditorY += 1200;
+			return true;
+		}
+	}
 	return false;
 }
 
 bool UQuickMaterialCreateWidget::ConnectARPin(UMaterialExpressionTextureSample* TextureSampleNode, UTexture2D* Texture,
-	UMaterial* Material)
+                                              UMaterial* Material)
 {
 	for(const FString& PackedName:PackedNameArray)
 	{
-		if(Texture->GetName().Contains(PackedName))
+		if(Texture->GetName().EndsWith(PackedName))
 		{
 			//纹理设置
 			Texture->CompressionSettings = TC_Default;

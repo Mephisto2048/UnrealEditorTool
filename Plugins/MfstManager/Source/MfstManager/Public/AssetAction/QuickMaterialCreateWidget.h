@@ -6,6 +6,7 @@
 #include "EditorUtilityWidget.h"
 #include "QuickMaterialCreateWidget.generated.h"
 
+class UMaterialInstanceConstant;
 class UMaterialExpressionTextureSample;
 /**
  * 
@@ -19,6 +20,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void CreateMaterialFromSelectedTextures();
 
+	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category = "Quick Create Material Menu")
+	bool bCreateMaterialInstance = false;
 	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category = "Quick Create Material Menu")
 	bool bCustomMaterialName = false;
 	//当bCustomMaterialName为真时才能编辑
@@ -58,6 +61,7 @@ private:
 	bool ProcessSelectedData(const TArray<FAssetData>& SelectedData,TArray<UTexture2D*>& OutTexturesArray,FString& OutTexturesPath);
 	bool CheckName(const FString& PackagePath,const FString& MaterialName);
 	UMaterial* CreateMaterialAsset(const FString& Name,const FString& Path);
+	UMaterialInstanceConstant* CreateMaterialInstance(UMaterial* Material,FString& Name,const FString& Path);
 	void CreateMaterialNodes(UMaterial* Material,UTexture2D* Texture,uint32& PinsCount);
 	/* Pin */
 	bool ConnectBaseColorPin(UMaterialExpressionTextureSample* TextureSampleNode,UTexture2D* Texture,UMaterial* Material);
