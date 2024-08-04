@@ -386,7 +386,7 @@ bool UQuickMaterialCreateWidget::ConnectARPin(UMaterialExpressionTextureSample* 
 {
 	for(const FString& PackedName:PackedNameArray)
 	{
-		if(Texture->GetName().EndsWith(PackedName))
+		if(Texture->GetName().Contains(PackedName))
 		{
 			//纹理设置
 			Texture->CompressionSettings = TC_Default;
