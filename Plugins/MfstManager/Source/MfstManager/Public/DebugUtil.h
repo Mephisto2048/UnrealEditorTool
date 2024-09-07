@@ -16,11 +16,15 @@ namespace DebugUtil
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Message));
 	}
-	
+	static EAppReturnType::Type MessageDialog_yesno(const FString& Message)
+	{
+		return FMessageDialog::Open(EAppMsgType::YesNo, FText::FromString(Message));
+	}
 	static void ShowNotify(const FString& String)
 	{
 		FNotificationInfo NotifyInfo(FText::FromString(String));
 		NotifyInfo.SubText = FText::FromString(TEXT("this is subtext"));
+		NotifyInfo.ExpireDuration = 5.f;
 		FSlateNotificationManager::Get().AddNotification(NotifyInfo);
 	}
 }
