@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+class UEditorActorSubsystem;
+
 class FMfstManagerModule : public IModuleInterface
 {
 public:
@@ -25,9 +27,16 @@ private:
 	void AddLEMenuEntry(FMenuBuilder& MenuBuilder);
 	void OnLockActorButtonClicked();
 	void OnUnlockActorButtonClicked();
-	TArray<AActor*> ActorsSelected;
+	
+	/* SelectionLock */
+	void InitCustomSelectionEvent();
+	void OnActorSelected(UObject* SelectedObject);
+	void LockActorSelection(AActor* InActor);
+	void UnlockActorSelection(AActor* InActor);
+	bool IsActorSelectionLocked(AActor* InActor);
 
-
+	bool GetEditorActorSubSystem();
+	UEditorActorSubsystem* EditorActorSubsystem;
 	
 	void FixUpRedirectors();
 };

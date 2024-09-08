@@ -8,7 +8,9 @@
 #include "EditorAssetLibrary.h"
 #include "LevelEditor.h"
 #include "ObjectTools.h"
+#include "Selection.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Subsystems/EditorActorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FMfstManagerModule"
 
@@ -18,6 +20,7 @@ void FMfstManagerModule::StartupModule()
 	UE_LOG(LogTemp, Warning, TEXT("StartupModule"));
 	InitContentBrowserMenuExtension();
 	InitLevelEditorExtension();
+	InitCustomSelectionEvent();
 }
 
 void FMfstManagerModule::ShutdownModule()
@@ -223,7 +226,6 @@ TSharedRef<FExtender> FMfstManagerModule::CustomLEMenuExtender(const TSharedRef<
 			TSharedPtr<FUICommandList>(),
 			FMenuExtensionDelegate::CreateRaw(this,&FMfstManagerModule::AddLEMenuEntry)
 			);
-		ActorsSelected = SelectedActors;
 	}
 	return MenuExtender;
 }
@@ -246,24 +248,102 @@ void FMfstManagerModule::AddLEMenuEntry(FMenuBuilder& MenuBuilder)
 
 void FMfstManagerModule::OnLockActorButtonClicked()
 {
-	FString LockedActorName;
-	for(const AActor* ActorSelected:ActorsSelected)
+	if(!GetEditorActorSubSystem()) return;
+	TArray<AActor*> ActorsSelected = EditorActorSubsystem->GetSelectedLevelActors();
+	if(ActorsSelected.Num() == 0)
 	{
-		LockedActorName.Append(ActorSelected->GetName());
+		DebugUtil::ShowNotify(TEXT("No actors selected"));
+		return;
+	}
+	FString LockedActorName;
+	for(AActor* ActorSelected:ActorsSelected)
+	{
+		LockActorSelection(ActorSelected);
+		EditorActorSubsystem->SetActorSelectionState(ActorSelected,false);
+		LockedActorName.Append(ActorSelected->GetActorLabel());
 		LockedActorName.Append(TEXT("\n"));
 	}
-	DebugUtil::MessageDialog(LockedActorName+TEXT(" has been locked"));
+	DebugUtil::ShowNotify(LockedActorName+TEXT(" has been locked"));
 }
 
 void FMfstManagerModule::OnUnlockActorButtonClicked()
 {
-	FString UnlockedActorName;
-	for(const AActor* ActorSelected:ActorsSelected)
+	if(!GetEditorActorSubSystem()) return;
+	TArray<AActor*> AllActors = EditorActorSubsystem->GetAllLevelActors();
+	TArray<AActor*> AllLockedActors;
+	
+	for(AActor* Actor:AllActors)
 	{
-		UnlockedActorName.Append(ActorSelected->GetName());
+		if(IsActorSelectionLocked(Actor))
+		{
+			AllLockedActors.Add(Actor);
+		}
+	}
+	if(AllLockedActors.Num()==0)
+	{
+		DebugUtil::ShowNotify(TEXT("No Actors Locked"));
+		return;
+	}
+	
+	FString UnlockedActorName;
+	for(AActor* LockedActor:AllLockedActors)
+	{
+		UnlockActorSelection(LockedActor);
+		UnlockedActorName.Append(LockedActor->GetActorLabel());
 		UnlockedActorName.Append(TEXT("\n"));
 	}
 	DebugUtil::MessageDialog(UnlockedActorName+TEXT(" has been unlocked"));
+}
+
+void FMfstManagerModule::InitCustomSelectionEvent()
+{
+	USelection* UserSelection = GEditor->GetSelectedActors();
+	UserSelection->SelectObjectEvent.AddRaw(this,&FMfstManagerModule::OnActorSelected);
+}
+
+void FMfstManagerModule::OnActorSelected(UObject* SelectedObject)
+{
+	if(!GetEditorActorSubSystem()) return;
+	if(AActor* SelectedActor = Cast<AActor>(SelectedObject))
+	{
+		if(IsActorSelectionLocked(SelectedActor))
+		{
+			EditorActorSubsystem->SetActorSelectionState(SelectedActor,false);
+		}
+	}
+}
+
+void FMfstManagerModule::LockActorSelection(AActor* InActor)
+{
+	if(!InActor) return;
+	if(!InActor->ActorHasTag(FName("Locked")))
+	{
+		InActor->Tags.Add(FName("Locked"));
+	}
+}
+
+void FMfstManagerModule::UnlockActorSelection(AActor* InActor)
+{
+	if(!InActor) return;
+	if(InActor->ActorHasTag(FName("Locked")))
+	{
+		InActor->Tags.Remove(FName("Locked"));
+	}
+}
+
+bool FMfstManagerModule::IsActorSelectionLocked(AActor* InActor)
+{
+	if(!InActor) return false;
+	return InActor->ActorHasTag(FName("Locked"));
+}
+
+bool FMfstManagerModule::GetEditorActorSubSystem()
+{
+	if(!EditorActorSubsystem)
+	{
+		EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+	}
+	return EditorActorSubsystem != nullptr;
 }
 
 void FMfstManagerModule::FixUpRedirectors()
