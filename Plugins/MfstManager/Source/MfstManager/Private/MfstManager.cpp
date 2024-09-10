@@ -11,7 +11,7 @@
 #include "Selection.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Subsystems/EditorActorSubsystem.h"
-
+#include "CustomUICommand/MfstUICommands.h"
 #define LOCTEXT_NAMESPACE "FMfstManagerModule"
 
 void FMfstManagerModule::StartupModule()
@@ -19,6 +19,10 @@ void FMfstManagerModule::StartupModule()
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 	UE_LOG(LogTemp, Warning, TEXT("StartupModule"));
 	InitContentBrowserMenuExtension();
+	
+	FMfstUICommands::Register();
+	InitCustomUICommands();
+	
 	InitLevelEditorExtension();
 	InitCustomSelectionEvent();
 }
@@ -205,6 +209,9 @@ void FMfstManagerModule::InitLevelEditorExtension()
 	FLevelEditorModule& LevelEditorModule =
 	FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 
+	TSharedRef<FUICommandList> ExistingLevelCommands = LevelEditorModule.GetGlobalLevelEditorActions();
+	ExistingLevelCommands->Append(CustomUICommandList.ToSharedRef());
+	
 	TArray<FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors>& LevelEditorMenuExtender =
 	   LevelEditorModule.GetAllLevelViewportContextMenuExtenders();
 
@@ -335,6 +342,31 @@ bool FMfstManagerModule::IsActorSelectionLocked(AActor* InActor)
 {
 	if(!InActor) return false;
 	return InActor->ActorHasTag(FName("Locked"));
+}
+
+void FMfstManagerModule::InitCustomUICommands()
+{
+	CustomUICommandList = MakeShareable(new FUICommandList());
+
+	CustomUICommandList->MapAction(
+		FMfstUICommands::Get().LockActorSelection,
+		FExecuteAction::CreateRaw(this,&FMfstManagerModule::OnSelectionLockHotKeyPress)
+	);
+
+	CustomUICommandList->MapAction(
+		FMfstUICommands::Get().UnlockActorSelection,
+		FExecuteAction::CreateRaw(this,&FMfstManagerModule::OnSelectionUnlockHotKeyPress)
+	);
+}
+
+void FMfstManagerModule::OnSelectionLockHotKeyPress()
+{
+	OnLockActorButtonClicked();
+}
+
+void FMfstManagerModule::OnSelectionUnlockHotKeyPress()
+{
+	OnLockActorButtonClicked();
 }
 
 bool FMfstManagerModule::GetEditorActorSubSystem()

@@ -35,6 +35,12 @@ private:
 	void UnlockActorSelection(AActor* InActor);
 	bool IsActorSelectionLocked(AActor* InActor);
 
+	/* CustomEditorUICommand */
+	void InitCustomUICommands();
+	TSharedPtr<FUICommandList> CustomUICommandList;
+	void OnSelectionLockHotKeyPress();
+	void OnSelectionUnlockHotKeyPress();
+	
 	bool GetEditorActorSubSystem();
 	UEditorActorSubsystem* EditorActorSubsystem;
 	
