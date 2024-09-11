@@ -15,20 +15,30 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 private:
+	/* ContentBrowserMenu */
 	void InitContentBrowserMenuExtension();
 	TSharedRef<FExtender> CustomCBMenuExtender(const TArray<FString>& SelectedPaths);
 	void AddCBMenuEntry(FMenuBuilder& MenuBuilder);
+	
 	void OnDeleteUnusedAssetButtonClicked();
 	void OnDeleteEmptyFolderButtonClicked();
+	void OnAdvanceDeletionButtonClicked();
 	TArray<FString> FolderPathsSelected;
 	
+	/* CustomEditorTab */
+	void RegisterAdvanceDeletionTab();
+	TSharedRef<SDockTab> OnSpawnAdvanceDeletionTab(const FSpawnTabArgs&);
+	TArray<TSharedPtr<FAssetData>> GetAllAssetDataUnderSeletedFolder();
+	
+	/* LevelEditorExtension */
 	void InitLevelEditorExtension();
 	TSharedRef<FExtender>CustomLEMenuExtender(const TSharedRef<FUICommandList> UICommandList, const TArray<AActor*> SelectedActors);
 	void AddLEMenuEntry(FMenuBuilder& MenuBuilder);
+	
 	void OnLockActorButtonClicked();
 	void OnUnlockActorButtonClicked();
 	
-	/* SelectionLock */
+	/*  */
 	void InitCustomSelectionEvent();
 	void OnActorSelected(UObject* SelectedObject);
 	void LockActorSelection(AActor* InActor);

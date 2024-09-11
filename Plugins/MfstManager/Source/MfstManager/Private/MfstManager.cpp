@@ -12,6 +12,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Subsystems/EditorActorSubsystem.h"
 #include "CustomUICommand/MfstUICommands.h"
+#include "SlateWidget/AdvanceDeletionWidget.h"
 #define LOCTEXT_NAMESPACE "FMfstManagerModule"
 
 void FMfstManagerModule::StartupModule()
@@ -19,6 +20,8 @@ void FMfstManagerModule::StartupModule()
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 	UE_LOG(LogTemp, Warning, TEXT("StartupModule"));
 	InitContentBrowserMenuExtension();
+	RegisterAdvanceDeletionTab();
+	//FGlobalTabmanager::Get()->TryInvokeTab(FName("AdvanceDeletion"));
 	
 	FMfstUICommands::Register();
 	InitCustomUICommands();
@@ -85,6 +88,13 @@ void FMfstManagerModule::AddCBMenuEntry(FMenuBuilder& MenuBuilder)
 		FText::FromString(TEXT("Safely Delete Empty Folders")),
 		FSlateIcon(),
 		FExecuteAction::CreateRaw(this,&FMfstManagerModule::OnDeleteEmptyFolderButtonClicked)
+	);
+
+	MenuBuilder.AddMenuEntry(
+		FText::FromString(TEXT("Advance Deletion")),
+		FText::FromString(TEXT("Open deletion slate tab")),
+		FSlateIcon(),
+		FExecuteAction::CreateRaw(this,&FMfstManagerModule::OnAdvanceDeletionButtonClicked)
 	);
 }
 
@@ -202,6 +212,53 @@ void FMfstManagerModule::OnDeleteEmptyFolderButtonClicked()
 	{
 		DebugUtil::ShowNotify(FString::FromInt(Count)+TEXT(" Folders deleted successfully"));
 	}
+}
+
+void FMfstManagerModule::OnAdvanceDeletionButtonClicked()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(FName("AdvanceDeletion"));
+}
+
+void FMfstManagerModule::RegisterAdvanceDeletionTab()
+{
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+	FName("AdvanceDeletion"),
+		FOnSpawnTab::CreateRaw(this,&FMfstManagerModule::OnSpawnAdvanceDeletionTab)
+	);
+}
+
+TSharedRef<SDockTab> FMfstManagerModule::OnSpawnAdvanceDeletionTab(const FSpawnTabArgs&)
+{
+	return
+		SNew(SDockTab).TabRole(ETabRole::NomadTab)
+		[
+			SNew(SAdvanceDeletionTab)
+			.AssetDataToStore(GetAllAssetDataUnderSeletedFolder())
+		];
+}
+
+TArray<TSharedPtr<FAssetData>> FMfstManagerModule::GetAllAssetDataUnderSeletedFolder()
+{
+	TArray<TSharedPtr<FAssetData>> AvailableAssetData;
+	TArray<FString> AssetsPathNames = UEditorAssetLibrary::ListAssets(FolderPathsSelected[0]);
+	for(const FString& AssetPathName : AssetsPathNames)
+	{
+		if(AssetPathName.Contains(TEXT("Developers")) ||
+			AssetPathName.Contains(TEXT("Collections"))
+			//do :external文件夹
+			||AssetPathName.Contains(TEXT("__ExternalActors__"))||
+			AssetPathName.Contains(TEXT("__ExternalObjects__"))
+		)
+		{
+			continue;
+		}
+		//todo: 检查AssetPathName路径下的资产是否存在
+
+		const FAssetData Data = UEditorAssetLibrary::FindAssetData(AssetPathName);
+
+		AvailableAssetData.Add(MakeShared<FAssetData>(Data));
+	}
+	return AvailableAssetData;
 }
 
 void FMfstManagerModule::InitLevelEditorExtension()
@@ -366,7 +423,7 @@ void FMfstManagerModule::OnSelectionLockHotKeyPress()
 
 void FMfstManagerModule::OnSelectionUnlockHotKeyPress()
 {
-	OnLockActorButtonClicked();
+	OnUnlockActorButtonClicked();
 }
 
 bool FMfstManagerModule::GetEditorActorSubSystem()
