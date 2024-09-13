@@ -54,9 +54,11 @@ private:
 	bool GetEditorActorSubSystem();
 	UEditorActorSubsystem* EditorActorSubsystem;
 	
-	void FixUpRedirectors();
+	
 public:
+	static void FixUpRedirectors();
 	static bool DeleteSingleAssetForAssetList(const FAssetData& AssetData);
 	static bool DeleteMulAssetsForAssetList(const TArray< FAssetData>& AssetsData);
+	static void ListUnusedAssetsForAssetList(const TArray<TSharedPtr<FAssetData>>& InAssetsData,TArray<TSharedPtr<FAssetData>>& OutAssetsData);
 };
  

@@ -486,6 +486,23 @@ bool FMfstManagerModule::DeleteMulAssetsForAssetList(const TArray<FAssetData>& A
 	return false;
 }
 
+void FMfstManagerModule::ListUnusedAssetsForAssetList(const TArray<TSharedPtr<FAssetData>>& InAssetsData,
+	TArray<TSharedPtr<FAssetData>>& OutAssetsData)
+{
+	FixUpRedirectors();
+	OutAssetsData.Empty();
+
+	for(const TSharedPtr<FAssetData>& AssetData: InAssetsData)
+	{
+		TArray<FString> AssetReferencers =
+			UEditorAssetLibrary::FindPackageReferencersForAsset(AssetData->GetObjectPathString());
+		if(AssetReferencers.Num() == 0)
+		{
+			OutAssetsData.Add(AssetData);
+		}
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE
 	

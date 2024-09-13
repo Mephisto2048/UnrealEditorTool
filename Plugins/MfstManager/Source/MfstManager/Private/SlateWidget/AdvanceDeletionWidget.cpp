@@ -12,6 +12,9 @@ void SAdvanceDeletionTab::Construct(const FArguments& InArgs)
 	bCanSupportFocus = true;
 
 	StoredAssetData = InArgs._AssetDataToStore;
+	DisplayedAssetsData = StoredAssetData;
+	ComboBoxSourceItems.Add(MakeShared<FString>(TEXT("List All Assets")));
+	ComboBoxSourceItems.Add(MakeShared<FString>(TEXT("List Selected Assets")));
 	
 	TitleTextFont.Size = 20.f;
 	BaseTextFont.Size = 10.f;
@@ -31,8 +34,9 @@ void SAdvanceDeletionTab::Construct(const FArguments& InArgs)
 		//2.list condition
 		+SVerticalBox::Slot()
 		.AutoHeight()
+		.HAlign(HAlign_Left)
 		[
-			SNew(SHorizontalBox)
+			ConstructComboBox()
 		]
 		//3.asset list
 		+SVerticalBox::Slot()
@@ -76,7 +80,7 @@ TSharedRef<SListView<TSharedPtr<FAssetData>>> SAdvanceDeletionTab::ConstructAsse
 	ConstructAssetList =
 		SNew(SListView<TSharedPtr<FAssetData>>)
 		.ItemHeight(24.f)
-		.ListItemsSource(&StoredAssetData)
+		.ListItemsSource(&DisplayedAssetsData)
 		.OnGenerateRow(this,&SAdvanceDeletionTab::OnGenerateRowForList);
 	return ConstructAssetList.ToSharedRef();
 }
@@ -191,6 +195,10 @@ FReply SAdvanceDeletionTab::OnDeleteButtonClicked(TSharedPtr<FAssetData> Clicked
 		{
 			StoredAssetData.Remove(ClickedAssetData);
 		}
+		if(DisplayedAssetsData.Contains(ClickedAssetData))
+		{
+			DisplayedAssetsData.Remove(ClickedAssetData);
+		}
 		RefreshAssetListView();
 	}
 	return FReply::Handled();
@@ -220,6 +228,10 @@ FReply SAdvanceDeletionTab::OnDeleteAllButtonClicked()
 				{
 					StoredAssetData.Remove(Asset);
 				}
+				if(DisplayedAssetsData.Contains(Asset))
+				{
+					DisplayedAssetsData.Remove(Asset);
+				}
         	}
 		RefreshAssetListView();
 	}
@@ -248,6 +260,49 @@ FReply SAdvanceDeletionTab::OnDeselectAllButtonClicked()
 	DebugUtil::Print(TEXT("OnDeselectAllButtonClicked"));
 	return FReply::Handled();
 }
+
+TSharedRef<SComboBox<TSharedPtr<FString>>> SAdvanceDeletionTab::ConstructComboBox()
+{
+	TSharedRef<SComboBox<TSharedPtr<FString>>> ComboBox = 
+	SNew(SComboBox<TSharedPtr<FString>>)
+	.OptionsSource(&ComboBoxSourceItems)
+	.OnGenerateWidget(this,&SAdvanceDeletionTab::OnGenerateComboContent)
+	.OnSelectionChanged(this,&SAdvanceDeletionTab::OnComboSelectionChanged)
+	[
+		SAssignNew(ComboDisplayTextBlock,STextBlock)
+		.Text(FText::FromString(TEXT("Option")))
+	]
+	;
+	
+	return ComboBox;
+}
+
+TSharedRef<SWidget> SAdvanceDeletionTab::OnGenerateComboContent(TSharedPtr<FString> SourceItem)
+{
+	TSharedRef<STextBlock> TextBlock=
+		SNew(STextBlock)
+		.Text(FText::FromString(*SourceItem.Get()))
+		;
+	return TextBlock;
+}
+
+void SAdvanceDeletionTab::OnComboSelectionChanged(TSharedPtr<FString> SelectedOption, ESelectInfo::Type InSelectInfo)
+{
+	ComboDisplayTextBlock->SetText(FText::FromString(*SelectedOption.Get()));
+
+	if(*SelectedOption.Get() == TEXT("List All Assets"))
+	{
+		DisplayedAssetsData = StoredAssetData;
+		RefreshAssetListView();
+	}
+	else if (*SelectedOption.Get() == TEXT("List Selected Assets"))
+	{
+		FMfstManagerModule::ListUnusedAssetsForAssetList(StoredAssetData,DisplayedAssetsData);
+		RefreshAssetListView();
+	}
+}
+
+
 
 
 

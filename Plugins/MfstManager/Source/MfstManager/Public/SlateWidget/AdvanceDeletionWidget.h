@@ -34,6 +34,15 @@ private:
 
 	TArray<TSharedPtr<FAssetData>> AssetsToDelete;
 	TArray<TSharedRef<SCheckBox>> CheckBoxesArray;
+	/* combobox */
+	TSharedRef<SComboBox<TSharedPtr<FString>>> ConstructComboBox();
+	TSharedRef<SWidget> OnGenerateComboContent(TSharedPtr<FString> SourceItem);
+	void OnComboSelectionChanged(TSharedPtr<FString> SelectedOption,ESelectInfo::Type InSelectInfo);
+	
+	
+	TArray<TSharedPtr<FString>> ComboBoxSourceItems;
+	TSharedPtr<STextBlock> ComboDisplayTextBlock;
+	TArray<TSharedPtr<FAssetData>> DisplayedAssetsData;
 	/**/
 	TArray<TSharedPtr<FAssetData>> StoredAssetData;
 
