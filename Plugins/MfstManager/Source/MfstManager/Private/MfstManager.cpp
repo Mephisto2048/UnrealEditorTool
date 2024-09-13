@@ -470,6 +470,23 @@ void FMfstManagerModule::FixUpRedirectors()
 	AssetToolsModule.Get().FixupReferencers(RedirectorsToFixArray);
 }
 
+bool FMfstManagerModule::DeleteSingleAssetForAssetList(const FAssetData& AssetData)
+{
+	TArray<FAssetData> AssetDataForDeletion;
+	AssetDataForDeletion.Add(AssetData);
+	if(ObjectTools::DeleteAssets(AssetDataForDeletion)>0) return true;
+
+	return false;
+}
+
+bool FMfstManagerModule::DeleteMulAssetsForAssetList(const TArray<FAssetData>& AssetsData)
+{
+	if(ObjectTools::DeleteAssets(AssetsData)>0) return true;
+
+	return false;
+}
+
+
 #undef LOCTEXT_NAMESPACE
 	
 IMPLEMENT_MODULE(FMfstManagerModule, MfstManager)

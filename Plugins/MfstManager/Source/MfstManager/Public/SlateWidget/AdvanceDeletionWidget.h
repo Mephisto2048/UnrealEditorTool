@@ -12,6 +12,31 @@ public:
 	void Construct(const FArguments& InArgs);
 	
 private:
+	/* List */
+	TSharedRef<SListView<TSharedPtr<FAssetData>>> ConstructAssetListView();
 	TSharedRef<ITableRow> OnGenerateRowForList(TSharedPtr<FAssetData> AssetDataToDisplay,const TSharedRef<STableViewBase>& OwnerTable);
+	void RefreshAssetListView();
+	TSharedPtr<SListView<TSharedPtr<FAssetData>>> ConstructAssetList;
+	
+	/* CheckBox */
+	TSharedRef<SCheckBox> ConstructCheckBox(const TSharedPtr<FAssetData>& AssetData);
+	void OnCheckBoxStateChanged(ECheckBoxState NewState,TSharedPtr<FAssetData> AssetData);
+
+	TSharedRef<STextBlock> ConstructTextRowWidget(const FString& String);
+	/* Delete */
+	TSharedRef<SButton> ConstructButtonForRowWidget(const TSharedPtr<FAssetData>& AssetData);
+	FReply OnDeleteButtonClicked(TSharedPtr<FAssetData> ClickedAssetData);
+
+	/* 3button */
+	FReply OnDeleteAllButtonClicked();
+	FReply OnSelectAllButtonClicked();
+	FReply OnDeselectAllButtonClicked();
+
+	TArray<TSharedPtr<FAssetData>> AssetsToDelete;
+	TArray<TSharedRef<SCheckBox>> CheckBoxesArray;
+	/**/
 	TArray<TSharedPtr<FAssetData>> StoredAssetData;
+
+	FSlateFontInfo TitleTextFont = FCoreStyle::Get().GetFontStyle(FName("EmbossedText"));
+	FSlateFontInfo BaseTextFont = FCoreStyle::Get().GetFontStyle(FName("EmbossedText"));
 };

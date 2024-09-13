@@ -55,5 +55,8 @@ private:
 	UEditorActorSubsystem* EditorActorSubsystem;
 	
 	void FixUpRedirectors();
+public:
+	static bool DeleteSingleAssetForAssetList(const FAssetData& AssetData);
+	static bool DeleteMulAssetsForAssetList(const TArray< FAssetData>& AssetsData);
 };
  
