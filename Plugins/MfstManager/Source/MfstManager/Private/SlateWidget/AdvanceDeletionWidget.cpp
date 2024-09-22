@@ -14,7 +14,7 @@ void SAdvanceDeletionTab::Construct(const FArguments& InArgs)
 	StoredAssetData = InArgs._AssetDataToStore;
 	DisplayedAssetsData = StoredAssetData;
 	ComboBoxSourceItems.Add(MakeShared<FString>(TEXT("List All Assets")));
-	ComboBoxSourceItems.Add(MakeShared<FString>(TEXT("List Selected Assets")));
+	ComboBoxSourceItems.Add(MakeShared<FString>(TEXT("List Unused Assets")));
 	ComboBoxSourceItems.Add(MakeShared<FString>(TEXT("List Same Name Assets")));
 	
 	TitleTextFont.Size = 20.f;
@@ -308,7 +308,7 @@ void SAdvanceDeletionTab::OnComboSelectionChanged(TSharedPtr<FString> SelectedOp
 		DisplayedAssetsData = StoredAssetData;
 		RefreshAssetListView();
 	}
-	else if (*SelectedOption.Get() == TEXT("List Selected Assets"))
+	else if (*SelectedOption.Get() == TEXT("List Unused Assets"))
 	{
 		FMfstManagerModule::ListUnusedAssetsForAssetList(StoredAssetData,DisplayedAssetsData);
 		RefreshAssetListView();

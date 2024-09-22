@@ -142,6 +142,7 @@ void FMfstManagerModule::OnDeleteUnusedAssetButtonClicked()
 		if(AssetReferencers.Num() == 0)
 		{
 			const FAssetData UnusedAssetData = UEditorAssetLibrary::FindAssetData(AssetPathName);
+			if(UnusedAssetData.GetClass()==UWorld::StaticClass()) continue;
 			UnusedAssetsData.Add(UnusedAssetData);
 		}
 	}
