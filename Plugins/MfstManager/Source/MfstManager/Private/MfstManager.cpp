@@ -8,6 +8,7 @@
 #include "EditorAssetLibrary.h"
 #include "LevelEditor.h"
 #include "ObjectTools.h"
+#include "SceneOutlinerModule.h"
 #include "Selection.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Subsystems/EditorActorSubsystem.h"
@@ -429,6 +430,12 @@ void FMfstManagerModule::OnSelectionLockHotKeyPress()
 void FMfstManagerModule::OnSelectionUnlockHotKeyPress()
 {
 	OnUnlockActorButtonClicked();
+}
+
+void FMfstManagerModule::InitSceneOutlinerColumnExtension()
+{
+	FSceneOutlinerModule& SceneOutlinerModule =
+		FModuleManager::LoadModuleChecked<FSceneOutlinerModule>(TEXT("SceneOutliner"));
 }
 
 bool FMfstManagerModule::GetEditorActorSubSystem()

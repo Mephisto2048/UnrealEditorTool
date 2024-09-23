@@ -50,7 +50,11 @@ private:
 	TSharedPtr<FUICommandList> CustomUICommandList;
 	void OnSelectionLockHotKeyPress();
 	void OnSelectionUnlockHotKeyPress();
+
+	/* OutlinerExtension */
+	void InitSceneOutlinerColumnExtension();
 	
+	/* Other */
 	bool GetEditorActorSubSystem();
 	UEditorActorSubsystem* EditorActorSubsystem;
 

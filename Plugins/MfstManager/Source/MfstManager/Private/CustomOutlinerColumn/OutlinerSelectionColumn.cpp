@@ -5,7 +5,15 @@
 
 SHeaderRow::FColumn::FArguments FOutlinerSelectionLockColumn::ConstructHeaderRowColumn()
 {
-	return SHeaderRow::FColumn::FArguments();
+	SHeaderRow::FColumn::FArguments HeaderRow=
+	SHeaderRow::Column(GetColumnID())
+	.DefaultTooltip(FText::FromString(TEXT("Press icon to lock actor selection")))
+	[
+		SNew(SImage)
+		.ColorAndOpacity(FSlateColor::UseForeground())
+		.Image(FCoreStyle::Get().GetBrush("DefaultBrush"))
+	];
+	return HeaderRow;
 }
 
 const TSharedRef<SWidget> FOutlinerSelectionLockColumn::ConstructRowWidget(FSceneOutlinerTreeItemRef TreeItem,

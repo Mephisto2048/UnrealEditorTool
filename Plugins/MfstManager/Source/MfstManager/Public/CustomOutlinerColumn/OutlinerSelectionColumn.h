@@ -7,7 +7,7 @@
 class FOutlinerSelectionLockColumn :public ISceneOutlinerColumn
 {
 public:
-	FOutlinerSelectionLockColumn(){}
+	FOutlinerSelectionLockColumn(ISceneOutliner& SceneOutliner){}
 
 	virtual FName GetColumnID()override{return FName("SelectionLock");}
 
