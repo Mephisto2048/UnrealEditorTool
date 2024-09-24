@@ -11,6 +11,7 @@
 #include "SceneOutlinerModule.h"
 #include "Selection.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "CustomOutlinerColumn/OutlinerSelectionColumn.h"
 #include "Subsystems/EditorActorSubsystem.h"
 #include "CustomUICommand/MfstUICommands.h"
 #include "SlateWidget/AdvanceDeletionWidget.h"
@@ -29,6 +30,7 @@ void FMfstManagerModule::StartupModule()
 	
 	InitLevelEditorExtension();
 	InitCustomSelectionEvent();
+	InitSceneOutlinerColumnExtension();
 }
 
 void FMfstManagerModule::ShutdownModule()
@@ -333,6 +335,7 @@ void FMfstManagerModule::OnLockActorButtonClicked()
 		LockedActorName.Append(ActorSelected->GetActorLabel());
 		LockedActorName.Append(TEXT("\n"));
 	}
+	RefreshSceneOutliner();
 	DebugUtil::ShowNotify(LockedActorName+TEXT(" has been locked"));
 }
 
@@ -362,7 +365,18 @@ void FMfstManagerModule::OnUnlockActorButtonClicked()
 		UnlockedActorName.Append(LockedActor->GetActorLabel());
 		UnlockedActorName.Append(TEXT("\n"));
 	}
+	RefreshSceneOutliner();
 	DebugUtil::MessageDialog(UnlockedActorName+TEXT(" has been unlocked"));
+}
+
+void FMfstManagerModule::RefreshSceneOutliner()
+{
+	FLevelEditorModule& LevelEditorModule =
+		FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+
+	TSharedPtr<ISceneOutliner>SceneOutliner=LevelEditorModule.GetFirstLevelEditor()->GetMostRecentlyUsedSceneOutliner();
+
+	if(SceneOutliner.IsValid()) SceneOutliner->FullRefresh();
 }
 
 void FMfstManagerModule::InitCustomSelectionEvent()
@@ -407,6 +421,21 @@ bool FMfstManagerModule::IsActorSelectionLocked(AActor* InActor)
 	return InActor->ActorHasTag(FName("Locked"));
 }
 
+void FMfstManagerModule::ProcessLockingForOutliner(AActor* ActorToProcess, bool bShouldLock)
+{
+	if(!GetEditorActorSubSystem()) return;
+
+	if(bShouldLock)
+	{
+		LockActorSelection(ActorToProcess);
+		EditorActorSubsystem->SetActorSelectionState(ActorToProcess,false);
+	}
+	else
+	{
+		UnlockActorSelection(ActorToProcess);
+	}
+}
+
 void FMfstManagerModule::InitCustomUICommands()
 {
 	CustomUICommandList = MakeShareable(new FUICommandList());
@@ -436,6 +465,17 @@ void FMfstManagerModule::InitSceneOutlinerColumnExtension()
 {
 	FSceneOutlinerModule& SceneOutlinerModule =
 		FModuleManager::LoadModuleChecked<FSceneOutlinerModule>(TEXT("SceneOutliner"));
+	FSceneOutlinerColumnInfo SelectionLockColumnInfo(
+	ESceneOutlinerColumnVisibility::Visible,
+			1,
+			FCreateSceneOutlinerColumn::CreateRaw(this,&FMfstManagerModule::OnCreateSelectionLockColumn)
+		);
+	SceneOutlinerModule.RegisterDefaultColumnType<FOutlinerSelectionLockColumn>(SelectionLockColumnInfo);
+}
+
+TSharedRef<ISceneOutlinerColumn> FMfstManagerModule::OnCreateSelectionLockColumn(ISceneOutliner& SceneOutliner)
+{
+	return MakeShareable(new FOutlinerSelectionLockColumn(SceneOutliner));
 }
 
 bool FMfstManagerModule::GetEditorActorSubSystem()

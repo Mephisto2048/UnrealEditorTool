@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+class ISceneOutliner;
+class ISceneOutlinerColumn;
 class UEditorActorSubsystem;
 
 class FMfstManagerModule : public IModuleInterface
@@ -37,14 +39,15 @@ private:
 	
 	void OnLockActorButtonClicked();
 	void OnUnlockActorButtonClicked();
+
+	void RefreshSceneOutliner();
 	
 	/*  */
 	void InitCustomSelectionEvent();
 	void OnActorSelected(UObject* SelectedObject);
 	void LockActorSelection(AActor* InActor);
 	void UnlockActorSelection(AActor* InActor);
-	bool IsActorSelectionLocked(AActor* InActor);
-
+	
 	/* CustomEditorUICommand */
 	void InitCustomUICommands();
 	TSharedPtr<FUICommandList> CustomUICommandList;
@@ -53,7 +56,7 @@ private:
 
 	/* OutlinerExtension */
 	void InitSceneOutlinerColumnExtension();
-	
+	TSharedRef<ISceneOutlinerColumn> OnCreateSelectionLockColumn(ISceneOutliner& SceneOutliner); 
 	/* Other */
 	bool GetEditorActorSubSystem();
 	UEditorActorSubsystem* EditorActorSubsystem;
@@ -67,5 +70,8 @@ public:
 	static void ListUnusedAssetsForAssetList(const TArray<TSharedPtr<FAssetData>>& InAssetsData,TArray<TSharedPtr<FAssetData>>& OutAssetsData);
 	static void ListSameNameAssetsForAssetList(const TArray<TSharedPtr<FAssetData>>& InAssetsData,TArray<TSharedPtr<FAssetData>>& OutAssetsData);
 	static void SyncCBToClickedAssetForAssetList(const FString& AssetPath);
+	//for outliner
+	bool IsActorSelectionLocked(AActor* InActor);
+	void ProcessLockingForOutliner(AActor* ActorToProcess, bool bShouldLock);
 };
  
