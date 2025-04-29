@@ -19,6 +19,9 @@ public:
 	UFUNCTION(BlueprintCallable,Category = "Find Material Expression")
 	void FindWorldPositionExpression();
 
+	UFUNCTION(BlueprintCallable,Category = "Find Material Expression")
+	int32 FindMaterialWorldPositionExpression(const FString& MaterialPath, FString& OutDetails);
+	
 	UPROPERTY(VisibleAnywhere,Category = "Find Material Expression")
 	int32  WorldPositionExpressionNum = 0;
 private:
