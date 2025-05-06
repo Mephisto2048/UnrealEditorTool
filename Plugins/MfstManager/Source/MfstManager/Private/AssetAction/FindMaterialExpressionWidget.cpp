@@ -5,6 +5,7 @@
 
 #include "DebugUtil.h"
 #include "EditorUtilityLibrary.h"
+#include "MaterialGraph/MaterialGraph.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
 
 void UFindMaterialExpressionWidget::FindWorldPositionExpression()
@@ -59,10 +60,18 @@ void UFindMaterialExpressionWidget::FindWorldPositionExpression()
 	}
 
 	WorldPositionExpressionNum = WorldPositionExpressionArray.Num();
+
+	if(SelectedMaterial->MaterialGraph)
+	{
+		TArray<UEdGraphNode*> UnusedNodes;
+		SelectedMaterial -> MaterialGraph -> GetUnusedExpressions(UnusedNodes);
+		WorldPositionExpressionNum = UnusedNodes.Num();
+	}
 }
 
 int32 UFindMaterialExpressionWidget::FindMaterialWorldPositionExpression(const FString& MaterialPath, FString& OutDetails)
 {
+	OutDetails.Empty();
 	// 创建 FSoftObjectPath 对象
 	FSoftObjectPath SoftObjectPath(MaterialPath);
 
@@ -77,11 +86,32 @@ int32 UFindMaterialExpressionWidget::FindMaterialWorldPositionExpression(const F
 	
 	FMaterialExpressionCollection& MaterialExpressionCollection = LoadedMaterial->GetExpressionCollection();
 	TArray<TObjectPtr<UMaterialExpression>> MaterialExpressions = MaterialExpressionCollection.Expressions;
+
+	if(LoadedMaterial ->MaterialGraph)
+	{
+		TArray<UEdGraphNode*> UnusedNodes;
+		LoadedMaterial -> MaterialGraph -> GetUnusedExpressions(UnusedNodes);
+		if(UnusedNodes.Num()>0)
+		{
+			for(UEdGraphNode* Node : UnusedNodes)
+			{
+				FString Name = Node->GetName();
+				OutDetails += FString::Printf(TEXT("%s\n"), *Name);
+			}
+			OutDetails += "\n";
+		}
+	}
+	
+	
+	
 	TArray<TObjectPtr<UMaterialExpressionWorldPosition>> WorldPositionArray;
 	
 	//查找Material的节点，添加到数组中
 	for(TObjectPtr<UMaterialExpression> Expression : MaterialExpressions)
 	{
+		if(!(Expression->GraphNode))DebugUtil::ShowNotify(TEXT("can not find GraphNode"));
+		if(! (Expression->HasConnectedOutputs())) continue;
+		
 		TObjectPtr<UMaterialExpressionWorldPosition> WorldPositionExpression = Cast<UMaterialExpressionWorldPosition>(Expression);
 		if(!WorldPositionExpression) continue;
 		
