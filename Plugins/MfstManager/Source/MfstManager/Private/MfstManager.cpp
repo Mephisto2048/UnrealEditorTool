@@ -15,6 +15,7 @@
 #include "Subsystems/EditorActorSubsystem.h"
 #include "CustomUICommand/MfstUICommands.h"
 #include "SlateWidget/AdvanceDeletionWidget.h"
+#include "SlateWidget/PropertyMatrix.h"
 #define LOCTEXT_NAMESPACE "FMfstManagerModule"
 
 void FMfstManagerModule::StartupModule()
@@ -23,6 +24,7 @@ void FMfstManagerModule::StartupModule()
 	UE_LOG(LogTemp, Warning, TEXT("StartupModule"));
 	InitContentBrowserMenuExtension();
 	RegisterAdvanceDeletionTab();
+	RegisterPropertyMatrixTab();
 	//FGlobalTabmanager::Get()->TryInvokeTab(FName("AdvanceDeletion"));
 	
 	FMfstUICommands::Register();
@@ -99,6 +101,13 @@ void FMfstManagerModule::AddCBMenuEntry(FMenuBuilder& MenuBuilder)
 		FText::FromString(TEXT("Open deletion slate tab")),
 		FSlateIcon(),
 		FExecuteAction::CreateRaw(this,&FMfstManagerModule::OnAdvanceDeletionButtonClicked)
+	);
+
+	MenuBuilder.AddMenuEntry(
+		FText::FromString(TEXT("Property Matrix")),
+		FText::FromString(TEXT("Open Property Matrix")),
+		FSlateIcon(),
+		FExecuteAction::CreateRaw(this,&FMfstManagerModule::OnPropertyMatrixButtonClicked)
 	);
 }
 
@@ -224,6 +233,11 @@ void FMfstManagerModule::OnAdvanceDeletionButtonClicked()
 	FGlobalTabmanager::Get()->TryInvokeTab(FName("AdvanceDeletion"));
 }
 
+void FMfstManagerModule::OnPropertyMatrixButtonClicked()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(FName("PropertyMatrixTab"));
+}
+
 void FMfstManagerModule::RegisterAdvanceDeletionTab()
 {
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -268,6 +282,25 @@ TArray<TSharedPtr<FAssetData>> FMfstManagerModule::GetAllAssetDataUnderSeletedFo
 	}
 	return AvailableAssetData;
 }
+
+void FMfstManagerModule::RegisterPropertyMatrixTab()
+{
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+		FName("PropertyMatrixTab"),
+			FOnSpawnTab::CreateRaw(this,&FMfstManagerModule::OnSpawnPropertyMatrixTab)
+		);
+}
+
+TSharedRef<SDockTab> FMfstManagerModule::OnSpawnPropertyMatrixTab(const FSpawnTabArgs&)
+{
+	return
+		SNew(SDockTab).TabRole(ETabRole::NomadTab)
+		[
+			SNew(SPropertyMatrixTab)
+			.AssetDataToStore(GetAllAssetDataUnderSeletedFolder())
+		];
+}
+
 
 void FMfstManagerModule::InitLevelEditorExtension()
 {

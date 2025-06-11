@@ -3,15 +3,21 @@
 
 #include "AssetAction/QuickAssetActionUtility.h"
 
-#include "AssetSelection.h"
 #include "AssetToolsModule.h"
 #include"DebugUtil.h"
 #include"EditorUtilityLibrary.h"
 #include"EditorAssetLibrary.h"
+#include "IPropertyTableColumn.h"
 #include "ObjectTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Editor/UnrealEd/Private/Toolkits/SStandaloneAssetEditorToolkitHost.h"
+#include "Settings/EditorStyleSettings.h"
+#include "Toolkit/MyPropertyEditorToolkit.h"
+#include "Toolkits/GlobalEditorCommonCommands.h"
+#include "Toolkits/ToolkitManager.h"
 
 using namespace DebugUtil;
+
 void UQuickAssetActionUtility::TestPrint()
 {
 	Print(TEXT("debug_print"));
@@ -50,13 +56,13 @@ void UQuickAssetActionUtility::AutoPrefix()
 		}
 		
 		FString OldName = SelectedObject->GetName();
-		/* µ±Ç°×Ê²úÒÑ¾­ÓĞÕıÈ·µÄÇ°×ºÁË */
+		/* å½“å‰èµ„äº§å·²ç»æœ‰æ­£ç¡®çš„å‰ç¼€äº† */
 		if(OldName.StartsWith(*PrefixFound))
 		{
 			Print(OldName + TEXT(" has current prefix"));
 			continue;
 		}
-		/* Èç¹ûµ±Ç°×Ê²úÊÇ²ÄÖÊÊµÀı */
+		/* å¦‚æœå½“å‰èµ„äº§æ˜¯æè´¨å®ä¾‹ */
 		if(SelectedObject->IsA<UMaterialInstanceConstant>())
 		{
 			OldName.RemoveFromEnd(TEXT("_Inst"));
@@ -101,26 +107,37 @@ void UQuickAssetActionUtility::DeleteUnusedAssets()
 	ShowNotify( FString::FromInt(DeleteCount) +TEXT(" Unused Assets Successfully Deleted "));
 }
 
+void UQuickAssetActionUtility::OpenPropertyMatrix()
+{
+	TArray<UObject*>SelectedObjects = UEditorUtilityLibrary::GetSelectedAssets();
+
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
+	
+	TSharedRef< FAssetEditorToolkit >AssetEditorToolkit = PropertyEditorModule.CreatePropertyEditorToolkit(TSharedPtr<IToolkitHost>(), SelectedObjects );
+
+
+}
+
 void UQuickAssetActionUtility::FixUpRedirectors()
 {
-	//´æ´¢ĞèÒªĞŞ¸´µÄÖØ¶¨ÏòÆ÷
+	//å­˜å‚¨éœ€è¦ä¿®å¤çš„é‡å®šå‘å™¨
 	TArray<UObjectRedirector*> RedirectorsToFixArray;
 	
-	//¼ÓÔØAssetRegistryÄ£¿é:Ê¹ÓÃFModuleManager¼ÓÔØ²¢»ñÈ¡FAssetRegistryModuleÄ£¿éµÄÒıÓÃ£¬Õâ¸öÄ£¿éÓÃÓÚ·ÃÎÊ×Ê²ú×¢²á±í
+	//åŠ è½½AssetRegistryæ¨¡å—:ä½¿ç”¨FModuleManageråŠ è½½å¹¶è·å–FAssetRegistryModuleæ¨¡å—çš„å¼•ç”¨ï¼Œè¿™ä¸ªæ¨¡å—ç”¨äºè®¿é—®èµ„äº§æ³¨å†Œè¡¨
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	
-	//ÉèÖÃ¹ıÂËÆ÷:´´½¨Ò»¸öFARFilter¶ÔÏó£¬ÉèÖÃ¹ıÂËÆ÷²ÎÊıÒÔµİ¹éµØËÑË÷/GameÄ¿Â¼ÏÂµÄËùÓĞ×Ê²ú£¬²¢É¸Ñ¡³öÀàÃûÎªObjectRedirectorµÄ×Ê²ú
+	//è®¾ç½®è¿‡æ»¤å™¨:åˆ›å»ºä¸€ä¸ªFARFilterå¯¹è±¡ï¼Œè®¾ç½®è¿‡æ»¤å™¨å‚æ•°ä»¥é€’å½’åœ°æœç´¢/Gameç›®å½•ä¸‹çš„æ‰€æœ‰èµ„äº§ï¼Œå¹¶ç­›é€‰å‡ºç±»åä¸ºObjectRedirectorçš„èµ„äº§
 	FARFilter Filter;
-	Filter.bRecursivePaths = true;    //ÊÇ·ñµİ¹éËÑË÷Â·¾¶,Ò²¾ÍÊÇÊÇ·ñËÑË÷×ÓÂ·¾¶
+	Filter.bRecursivePaths = true;    //æ˜¯å¦é€’å½’æœç´¢è·¯å¾„,ä¹Ÿå°±æ˜¯æ˜¯å¦æœç´¢å­è·¯å¾„
 	Filter.PackagePaths.Emplace("/Game");
 	Filter.ClassPaths.Emplace("ObjectRedirector");
 	
-	//»ñÈ¡×Ê²úÊı¾İ:Ê¹ÓÃ¹ıÂËÆ÷´Ó×Ê²ú×¢²á±íÖĞ»ñÈ¡·ûºÏÌõ¼şµÄ×Ê²úÊı¾İ£¬´æ´¢ÔÚOutRedirectorsÊı×éÖĞ
+	//è·å–èµ„äº§æ•°æ®:ä½¿ç”¨è¿‡æ»¤å™¨ä»èµ„äº§æ³¨å†Œè¡¨ä¸­è·å–ç¬¦åˆæ¡ä»¶çš„èµ„äº§æ•°æ®ï¼Œå­˜å‚¨åœ¨OutRedirectorsæ•°ç»„ä¸­
 	TArray<FAssetData> OutRedirectors;
 	AssetRegistryModule.Get().GetAssets(Filter, OutRedirectors);
 	
-	//É¸Ñ¡ºÍÌí¼ÓÖØ¶¨ÏòÆ÷:±éÀúOutRedirectorsÊı×éÖĞµÄÃ¿¸öFAssetData¶ÔÏó¡£
-	//³¢ÊÔ½«×Ê²úÊı¾İ×ª»»ÎªUObjectRedirectorÀàĞÍ£¬Èç¹û³É¹¦ÔòÌí¼Óµ½RedirectorsToFixArrayÊı×éÖĞ
+	//ç­›é€‰å’Œæ·»åŠ é‡å®šå‘å™¨:éå†OutRedirectorsæ•°ç»„ä¸­çš„æ¯ä¸ªFAssetDataå¯¹è±¡ã€‚
+	//å°è¯•å°†èµ„äº§æ•°æ®è½¬æ¢ä¸ºUObjectRedirectorç±»å‹ï¼Œå¦‚æœæˆåŠŸåˆ™æ·»åŠ åˆ°RedirectorsToFixArrayæ•°ç»„ä¸­
 	for (const FAssetData& RedirectorData : OutRedirectors)
 	{
 		if (UObjectRedirector* RedirectorToFix = Cast<UObjectRedirector>(RedirectorData.GetAsset()))
@@ -129,9 +146,9 @@ void UQuickAssetActionUtility::FixUpRedirectors()
 		}
 	}
 	
-	//¼ÓÔØAssetToolsÄ£¿é²¢ĞŞ¸´ÖØ¶¨ÏòÆ÷:
-	//Ê¹ÓÃFModuleManager¼ÓÔØ²¢»ñÈ¡FAssetToolsModuleÄ£¿éµÄÒıÓÃ¡£
-	//µ÷ÓÃFixupReferencers·½·¨£¬´«ÈëRedirectorsToFixArrayÊı×é£¬ĞŞ¸´ÕâĞ©ÖØ¶¨ÏòÆ÷µÄÒıÓÃ
+	//åŠ è½½AssetToolsæ¨¡å—å¹¶ä¿®å¤é‡å®šå‘å™¨:
+	//ä½¿ç”¨FModuleManageråŠ è½½å¹¶è·å–FAssetToolsModuleæ¨¡å—çš„å¼•ç”¨ã€‚
+	//è°ƒç”¨FixupReferencersæ–¹æ³•ï¼Œä¼ å…¥RedirectorsToFixArrayæ•°ç»„ï¼Œä¿®å¤è¿™äº›é‡å®šå‘å™¨çš„å¼•ç”¨
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 	AssetToolsModule.Get().FixupReferencers(RedirectorsToFixArray);
 }

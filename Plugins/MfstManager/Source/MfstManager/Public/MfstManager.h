@@ -25,12 +25,17 @@ private:
 	void OnDeleteUnusedAssetButtonClicked();
 	void OnDeleteEmptyFolderButtonClicked();
 	void OnAdvanceDeletionButtonClicked();
+	void OnPropertyMatrixButtonClicked();
 	TArray<FString> FolderPathsSelected;
 	
 	/* CustomEditorTab */
 	void RegisterAdvanceDeletionTab();
 	TSharedRef<SDockTab> OnSpawnAdvanceDeletionTab(const FSpawnTabArgs&);
 	TArray<TSharedPtr<FAssetData>> GetAllAssetDataUnderSeletedFolder();
+	
+	/* PropertyMatrix */
+	void RegisterPropertyMatrixTab();
+	TSharedRef<SDockTab> OnSpawnPropertyMatrixTab(const FSpawnTabArgs&);
 	
 	/* LevelEditorExtension */
 	void InitLevelEditorExtension();

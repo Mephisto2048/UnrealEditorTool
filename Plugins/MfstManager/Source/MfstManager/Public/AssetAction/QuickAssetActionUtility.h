@@ -37,6 +37,8 @@ public:
 	UFUNCTION(CallInEditor)
 	void DeleteUnusedAssets();
 
+	UFUNCTION(CallInEditor)
+	void OpenPropertyMatrix();
 	
 	void FixUpRedirectors();
 private:
@@ -57,4 +59,6 @@ private:
 		{UNiagaraSystem::StaticClass(), TEXT("NS_")},
 		{UNiagaraEmitter::StaticClass(), TEXT("NE_")}
 	};
+	
+	
 };

@@ -37,7 +37,7 @@ public class MfstManager : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"Slate",
-				"SlateCore", "SceneOutliner" , "Foliage"
+				"SlateCore", "SceneOutliner" , "Foliage" ,"PropertyEditor"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
