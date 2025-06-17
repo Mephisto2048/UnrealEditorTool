@@ -16,14 +16,181 @@ void UMeshLODWidget::InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh, USkelet
 {
 	FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
 	int32 LODNum = ImportedModel->LODModels.Num();
+
+	DebugUtil::Print(FString::FromInt(LODNum));
 	
-	//FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(0);
 	for(int i = LODNum; i>0 ;i--)
 	{
 		SetCustomLOD(SkeletalMesh,SkeletalMesh,i,i-1,TEXT(""));
 	}
-	//SetCustomLOD(SkeletalMesh,SkeletalMesh,3,2,TEXT(""));
-	FLODUtilities::SetCustomLOD(SkeletalMesh,LOD0,0,TEXT(""));
+	LODNum = ImportedModel->LODModels.Num();
+	
+	FLODUtilities::SetCustomLOD(SkeletalMesh,LOD0,LODNum,TEXT(""));
+	LODNum = ImportedModel->LODModels.Num();
+	DebugUtil::Print(FString::FromInt(LODNum));
+	
+	// 获取最后一个LOD模型的索引
+	int32 LastIndex = LODNum - 1;
+    
+	SetCustomLOD(SkeletalMesh,SkeletalMesh,0,LastIndex,TEXT(""));
+	
+	LODNum = ImportedModel->LODModels.Num();
+	LastIndex = LODNum - 1;
+	
+	//移除最后一级LOD
+	FSkeletalMeshUpdateContext UpdateContext;
+	UpdateContext.SkeletalMesh = SkeletalMesh;
+
+	FLODUtilities::RemoveLOD(UpdateContext, LastIndex);
+
+	/*if (SkeletalMesh->GetLODSettings())
+	{
+		SkeletalMesh->GetLODSettings()->SetLODSettingsToMesh(SkeletalMesh);
+	}*/
+	
+	
+	TFunction<TMap<FString, UMaterialInterface*>(USkeletalMesh*)> CreateVertexMaterialMap = [this](USkeletalMesh* Mesh) -> TMap<FString, UMaterialInterface*>
+	{
+		auto GetMaterialIndexLambda = [](USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 SectionIndex) -> int32
+		{
+			const FSkeletalMeshLODInfo* LODInfoPtr = SkeletalMesh->GetLODInfo(LODIndex);
+			if (LODInfoPtr && LODInfoPtr->LODMaterialMap.IsValidIndex(SectionIndex) && LODInfoPtr->LODMaterialMap[SectionIndex] != INDEX_NONE)
+			{
+				return LODInfoPtr->LODMaterialMap[SectionIndex];
+			}
+			return SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
+		};
+		TMap<FString, UMaterialInterface*> Map;
+        
+		if (!Mesh || !Mesh->GetImportedModel())
+			return Map;
+        
+		const int32 LODIndex = 0;
+		if (!Mesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+			return Map;
+        
+		const FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[LODIndex];
+        
+		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+		{
+			const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+			int32 VertexCount = Section.GetNumVertices();
+
+			FString String = FString::FromInt(VertexCount) + Section.SoftVertices[1].Position.ToString();
+			
+			int32 MaterialIndex = GetMaterialIndexLambda(Mesh,0,SectionIndex);
+			UMaterialInterface* MaterialInterface = Mesh->GetMaterials()[MaterialIndex].MaterialInterface;
+            
+			// 注意：如果多个 Section 有相同的顶点数，后出现的会覆盖前一个
+			Map.Add(String, MaterialInterface);
+		}
+        
+		return Map;
+	};
+	TMap<FString, UMaterialInterface*> LOD0Map = CreateVertexMaterialMap(LOD0);
+
+	TArray<FSkelMeshSection> SKMSections = ImportedModel->LODModels[0].Sections;
+	TArray<int32>& SKMMaterialMap = SkeletalMesh->GetLODInfo(0)->LODMaterialMap;
+	
+	for (int i = 0;i < SKMSections.Num(); i++)
+	{
+		int32 VertNum = SKMSections[i].GetNumVertices();
+		FString String = FString::FromInt(VertNum) + SKMSections[i].SoftVertices[1].Position.ToString();
+		
+		UMaterialInterface* Material = LOD0Map.FindRef(String);
+
+		FName SlotName = Material->GetFName();
+		
+		FSkeletalMaterial SkeletalMaterial = FSkeletalMaterial(Material,SlotName);
+		SkeletalMesh->GetMaterials().Emplace(SkeletalMaterial);
+
+		if(SKMMaterialMap.IsValidIndex(i))
+		{
+			SKMMaterialMap[i] = SkeletalMesh->GetMaterials().Num() - 1;
+		}
+		else
+		{
+			SKMMaterialMap.SetNum(i + 1);
+			SKMMaterialMap[i] = SkeletalMesh->GetMaterials().Num() - 1;
+		}
+	}
+
+	//删除空的材质插槽
+	TArray<FSkeletalMaterial>& Materials = SkeletalMesh->GetMaterials();
+	for (int32 i = Materials.Num() - 1; i >= 0; --i)
+	{
+		if (Materials[i].MaterialInterface == nullptr) // 检查是否为空
+		{
+			USkeletalMesh* SkeletalMeshPtr = SkeletalMesh;
+			SkeletalMeshPtr->GetMaterials().RemoveAt(i);
+			FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
+
+			
+
+			//When we delete a material slot we need to fix all MaterialIndex after the deleted index
+			TArray<int32>& LODMaterialMap = SkeletalMeshPtr->GetLODInfo(0)->LODMaterialMap;
+			for (int32 SectionIndex = 0; SectionIndex < Model->LODModels[0].Sections.Num(); ++SectionIndex)
+			{
+				int32 SectionMaterialIndex = Model->LODModels[0].Sections[SectionIndex].MaterialIndex;
+				if (LODMaterialMap.IsValidIndex(SectionIndex) && LODMaterialMap[SectionIndex] != INDEX_NONE)
+				{
+					SectionMaterialIndex = LODMaterialMap[SectionIndex];
+				}
+				if (SectionMaterialIndex > i)
+				{
+					SectionMaterialIndex--;
+				}
+				if (SectionMaterialIndex != Model->LODModels[0].Sections[SectionIndex].MaterialIndex)
+				{
+					while(!LODMaterialMap.IsValidIndex(SectionIndex))
+					{
+						LODMaterialMap.Add(INDEX_NONE);
+					}
+					LODMaterialMap[SectionIndex] = SectionMaterialIndex;
+				}
+			}
+		}
+		
+	}
+	
+	SkeletalMesh->PostEditChange();
+}
+
+void UMeshLODWidget::SetCustomLOD(USkeletalMesh* SkeletalMesh, USkeletalMesh* LOD0)
+{
+	SetCustomLOD(SkeletalMesh,LOD0,1,0,TEXT(""));
+}
+
+void UMeshLODWidget::AddMaterialSlot(USkeletalMesh* SkeletalMesh)
+{
+	SkeletalMesh->GetMaterials().Add(FSkeletalMaterial());
+	SkeletalMesh->PostEditChange();
+}
+
+
+
+void UMeshLODWidget::SetMaterialSlot(USkeletalMesh* SkeletalMesh, USkeletalMesh* LOD0)
+{
+	FSkeletalMeshModel* LOD0Model = LOD0->GetImportedModel();
+	TArray<FSkelMeshSection> LOD0Sections = LOD0Model->LODModels[0].Sections;
+	TArray<int32>& LOD0MaterialMap = LOD0->GetLODInfo(0)->LODMaterialMap;
+	
+	TArray<int32>& SKMMaterialMap = SkeletalMesh->GetLODInfo(0)->LODMaterialMap;
+	
+	for(const FSkelMeshSection& Section : LOD0Sections)
+	{ 
+		int32 MaterialIndex = LOD0MaterialMap[Section.BaseIndex];
+		
+		UMaterialInterface* MaterialInterface = LOD0->GetMaterials()[MaterialIndex].MaterialInterface;
+		
+		FName SlotName = LOD0->GetMaterials()[MaterialIndex].MaterialSlotName;
+
+		FSkeletalMaterial SkeletalMaterial = FSkeletalMaterial(MaterialInterface,SlotName);
+		SkeletalMesh->GetMaterials().Add(SkeletalMaterial);
+
+		SKMMaterialMap[Section.BaseIndex] = SkeletalMesh->GetMaterials().Num()-1;
+	}
+	SkeletalMesh->PostEditChange();
 }
 
 bool UMeshLODWidget::SetCustomLOD(USkeletalMesh* DestinationSkeletalMesh, USkeletalMesh* SourceSkeletalMesh, const int32 LodIndex, const int32 SrcLodIndex,const FString& SourceDataFilename)
@@ -266,7 +433,7 @@ bool UMeshLODWidget::SetCustomLOD(USkeletalMesh* DestinationSkeletalMesh, USkele
 	TArray<FName> ExistingOriginalPerSectionMaterialImportName;
 	bool bIsReImport = false;
 	//Restore the LOD section data in case this LOD was reimport and some material match
-	if (DestImportedResource->LODModels.IsValidIndex(LodIndex) && SourceImportedResource->LODModels.IsValidIndex(SrcLodIndex))//m
+	if (DestImportedResource->LODModels.IsValidIndex(LodIndex) && SourceImportedResource->LODModels.IsValidIndex(SrcLodIndex))
 	{
 		if (!DestinationSkeletalMesh->IsLODImportedDataEmpty(LodIndex))
 		{
@@ -289,7 +456,8 @@ bool UMeshLODWidget::SetCustomLOD(USkeletalMesh* DestinationSkeletalMesh, USkele
 		DestinationSkeletalMesh->AddLODInfo();
 		check(DestinationSkeletalMesh->GetLODNum() == DestImportedResource->LODModels.Num());
 	}
-
+	
+	// 处理LOD分段的材质导入
 	const int32 SourceLODIndex = SrcLodIndex;
 	if (!SourceSkeletalMesh->IsLODImportedDataEmpty(SourceLODIndex))
 	{
@@ -324,7 +492,7 @@ bool UMeshLODWidget::SetCustomLOD(USkeletalMesh* DestinationSkeletalMesh, USkele
 	//Copy the import data into the base skeletalmesh for the imported LOD
 	USkeletalMesh::CopyImportedData(SrcLodIndex, SourceSkeletalMesh, LodIndex, DestinationSkeletalMesh);
 
-
+	//PrintSkeletalMeshInfo(DestinationSkeletalMesh);
 	// If this LOD had been generated previously by automatic mesh reduction, clear that flag.
 	LODInfo.bHasBeenSimplified = false;
 	if (DestinationSkeletalMesh->GetLODSettings() == nullptr || !DestinationSkeletalMesh->GetLODSettings()->HasValidSettings() || DestinationSkeletalMesh->GetLODSettings()->GetNumberOfSettings() <= LodIndex)
@@ -356,3 +524,153 @@ bool UMeshLODWidget::SetCustomLOD(USkeletalMesh* DestinationSkeletalMesh, USkele
 	
 	return true;
 }
+
+int32 UMeshLODWidget::GetMaterialIndex(USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 SectionIndex)
+{
+	const FSkeletalMeshLODInfo* LODInfoPtr = SkeletalMesh->GetLODInfo(LODIndex);
+	if (LODInfoPtr && LODInfoPtr->LODMaterialMap.IsValidIndex(SectionIndex) && LODInfoPtr->LODMaterialMap[SectionIndex] != INDEX_NONE)
+	{
+		return LODInfoPtr->LODMaterialMap[SectionIndex];
+	}
+	return SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
+}
+
+void UMeshLODWidget::PrintSkeletalMeshInfo(USkeletalMesh* SkeletalMesh)
+{
+	FSkeletalMeshModel* const ImportedResource = SkeletalMesh->GetImportedModel();
+
+	FSkeletalMeshLODModel* LODModel = &ImportedResource->LODModels[0];
+	
+	const int32 SectionNum = LODModel->Sections.Num();
+
+	FString OutString;
+	for(int i = 0;i<SectionNum;i++)
+	{
+		int32 VertNum = LODModel->Sections[i].GetNumVertices();
+		OutString += FString::Printf(TEXT("Section %d :\n"), i);
+		OutString += FString::Printf(TEXT("VertNum : %d\n"), VertNum);
+	}
+	DebugUtil::Print(OutString);
+	
+}
+
+void UMeshLODWidget::SortSkeletalMeshLOD(USkeletalMesh* SkeletalMesh)
+{
+	FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+	TIndirectArray<FSkeletalMeshLODModel>& LODModelsArray = ImportedModel->LODModels;
+
+	// 获取最后一个LOD模型的索引
+	int32 LastIndex = LODModelsArray.Num() - 1;
+    
+	SetCustomLOD(SkeletalMesh,SkeletalMesh,0,LastIndex,TEXT(""));
+
+}
+
+void UMeshLODWidget::RefreshSectionMaterials(USkeletalMesh* SkeletalMesh, USkeletalMesh* LOD0)
+{
+	TFunction<TMap<int32, UMaterialInterface*>(USkeletalMesh*)> CreateVertexMaterialMap = [this](USkeletalMesh* Mesh) -> TMap<int32, UMaterialInterface*>
+	{
+		TMap<int32, UMaterialInterface*> Map;
+        
+		if (!Mesh || !Mesh->GetImportedModel())
+			return Map;
+        
+		const int32 LODIndex = 0;
+		if (!Mesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+			return Map;
+        
+		const FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[LODIndex];
+        
+		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+		{
+			const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+			int32 VertexCount = Section.GetNumVertices();
+
+			int32 MaterialIndex = GetMaterialIndex(Mesh,0,SectionIndex);
+			UMaterialInterface* MaterialInterface = Mesh->GetMaterials()[MaterialIndex].MaterialInterface;
+            
+			// 注意：如果多个 Section 有相同的顶点数，后出现的会覆盖前一个
+			Map.Add(VertexCount, MaterialInterface);
+		}
+        
+		return Map;
+	};
+	TMap<int32, UMaterialInterface*> LOD0Map = CreateVertexMaterialMap(LOD0);
+
+	FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+	TArray<FSkelMeshSection> SKMSections = ImportedModel->LODModels[0].Sections;
+	TArray<int32>& SKMMaterialMap = SkeletalMesh->GetLODInfo(0)->LODMaterialMap;
+	
+	for (int i = 0;i < SKMSections.Num(); i++)
+	{
+		int32 VertNum = SKMSections[i].GetNumVertices();
+		UMaterialInterface* Material = LOD0Map.FindRef(VertNum);
+
+		FName SlotName = Material->GetFName();
+		
+		FSkeletalMaterial SkeletalMaterial = FSkeletalMaterial(Material,SlotName);
+		SkeletalMesh->GetMaterials().Emplace(SkeletalMaterial);
+
+		if(SKMMaterialMap.IsValidIndex(i))
+		{
+			SKMMaterialMap[i] = SkeletalMesh->GetMaterials().Num() - 1;
+		}
+		else
+		{
+			SKMMaterialMap.SetNum(i + 1);
+			SKMMaterialMap[i] = SkeletalMesh->GetMaterials().Num() - 1;
+		}
+	}
+
+	SkeletalMesh->PostEditChange();
+}
+
+FString UMeshLODWidget::GetSectionVertPosition(USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 SectionIndex)
+{
+	FVector3f pos =  SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].SoftVertices[1].Position;
+	return pos.ToString();
+}
+
+void UMeshLODWidget::RemoveEmptyMaterialSlot(USkeletalMesh* SkeletalMesh)
+{
+	 TArray<FSkeletalMaterial>& Materials = SkeletalMesh->GetMaterials();
+
+	for (int32 i = Materials.Num() - 1; i >= 0; --i)
+	{
+		if (Materials[i].MaterialInterface == nullptr) // 检查是否为空
+		{
+			USkeletalMesh* SkeletalMeshPtr = SkeletalMesh;
+			SkeletalMeshPtr->GetMaterials().RemoveAt(i);
+			FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
+
+			
+
+			//When we delete a material slot we need to fix all MaterialIndex after the deleted index
+			TArray<int32>& LODMaterialMap = SkeletalMeshPtr->GetLODInfo(0)->LODMaterialMap;
+			for (int32 SectionIndex = 0; SectionIndex < Model->LODModels[0].Sections.Num(); ++SectionIndex)
+			{
+				int32 SectionMaterialIndex = Model->LODModels[0].Sections[SectionIndex].MaterialIndex;
+				if (LODMaterialMap.IsValidIndex(SectionIndex) && LODMaterialMap[SectionIndex] != INDEX_NONE)
+				{
+					SectionMaterialIndex = LODMaterialMap[SectionIndex];
+				}
+				if (SectionMaterialIndex > i)
+				{
+					SectionMaterialIndex--;
+				}
+				if (SectionMaterialIndex != Model->LODModels[0].Sections[SectionIndex].MaterialIndex)
+				{
+					while(!LODMaterialMap.IsValidIndex(SectionIndex))
+					{
+						LODMaterialMap.Add(INDEX_NONE);
+					}
+					LODMaterialMap[SectionIndex] = SectionMaterialIndex;
+				}
+			}
+		}
+		
+	}
+	SkeletalMesh->PostEditChange();
+}
+
+

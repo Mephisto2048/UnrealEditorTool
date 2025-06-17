@@ -16,6 +16,35 @@ class MFSTMANAGER_API UMeshLODWidget : public UEditorUtilityWidget
 public:
 	UFUNCTION(BlueprintCallable)
 	void InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh,USkeletalMesh* LOD0);
+	
+	UFUNCTION(BlueprintCallable)
+	void SetCustomLOD(USkeletalMesh* SkeletalMesh,USkeletalMesh* LOD0);
+	
+	UFUNCTION(BlueprintCallable)
+	void AddMaterialSlot(USkeletalMesh* SkeletalMesh);
+	
+	UFUNCTION(BlueprintCallable)
+	void SetMaterialSlot(USkeletalMesh* SkeletalMesh,USkeletalMesh* LOD0);
+	
+	UFUNCTION(BlueprintCallable)
+	int32 GetMaterialIndex(USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 SectionIndex);
 
+	UFUNCTION(BlueprintCallable)
+	void PrintSkeletalMeshInfo(USkeletalMesh* SkeletalMesh);
+	
+	UFUNCTION(BlueprintCallable)
+	void SortSkeletalMeshLOD(USkeletalMesh* SkeletalMesh);
+
+	UFUNCTION(BlueprintCallable)
+	void RefreshSectionMaterials(USkeletalMesh* SkeletalMesh, USkeletalMesh* LOD0);
+
+	UFUNCTION(BlueprintCallable)
+	FString GetSectionVertPosition(USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 SectionIndex);
+
+	UFUNCTION(BlueprintCallable)
+	void RemoveEmptyMaterialSlot(USkeletalMesh* SkeletalMesh);
+	
 	bool SetCustomLOD(USkeletalMesh* DestinationSkeletalMesh, USkeletalMesh* SourceSkeletalMesh, const int32 LodIndex, const int32 SrcLodIndex,const FString& SourceDataFilename);
+	
+	
 };
