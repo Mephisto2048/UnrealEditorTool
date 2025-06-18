@@ -48,47 +48,35 @@ void UMeshLODWidget::InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh, USkelet
 		SkeletalMesh->GetLODSettings()->SetLODSettingsToMesh(SkeletalMesh);
 	}*/
 	
-	
-	TFunction<TMap<FString, UMaterialInterface*>(USkeletalMesh*)> CreateVertexMaterialMap = [this](USkeletalMesh* Mesh) -> TMap<FString, UMaterialInterface*>
+	//构造顶点数与材质的映射
+	auto GetMaterialIndexLambda = [](USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 SectionIndex) -> int32
 	{
-		auto GetMaterialIndexLambda = [](USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 SectionIndex) -> int32
+		const FSkeletalMeshLODInfo* LODInfoPtr = SkeletalMesh->GetLODInfo(LODIndex);
+		if (LODInfoPtr && LODInfoPtr->LODMaterialMap.IsValidIndex(SectionIndex) && LODInfoPtr->LODMaterialMap[SectionIndex] != INDEX_NONE)
 		{
-			const FSkeletalMeshLODInfo* LODInfoPtr = SkeletalMesh->GetLODInfo(LODIndex);
-			if (LODInfoPtr && LODInfoPtr->LODMaterialMap.IsValidIndex(SectionIndex) && LODInfoPtr->LODMaterialMap[SectionIndex] != INDEX_NONE)
-			{
-				return LODInfoPtr->LODMaterialMap[SectionIndex];
-			}
-			return SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
-		};
-		TMap<FString, UMaterialInterface*> Map;
-        
-		if (!Mesh || !Mesh->GetImportedModel())
-			return Map;
-        
-		const int32 LODIndex = 0;
-		if (!Mesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
-			return Map;
-        
-		const FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[LODIndex];
-        
-		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
-		{
-			const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
-			int32 VertexCount = Section.GetNumVertices();
-
-			FString String = FString::FromInt(VertexCount) + Section.SoftVertices[1].Position.ToString();
-			
-			int32 MaterialIndex = GetMaterialIndexLambda(Mesh,0,SectionIndex);
-			UMaterialInterface* MaterialInterface = Mesh->GetMaterials()[MaterialIndex].MaterialInterface;
-            
-			// 注意：如果多个 Section 有相同的顶点数，后出现的会覆盖前一个
-			Map.Add(String, MaterialInterface);
+			return LODInfoPtr->LODMaterialMap[SectionIndex];
 		}
-        
-		return Map;
+		return SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
 	};
-	TMap<FString, UMaterialInterface*> LOD0Map = CreateVertexMaterialMap(LOD0);
+	TMap<FString, UMaterialInterface*> LOD0Map;
+        
+	const FSkeletalMeshLODModel& LODModel = LOD0->GetImportedModel()->LODModels[0];
+        
+	for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+	{
+		const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+		int32 VertexCount = Section.GetNumVertices();
 
+		FString String = FString::FromInt(VertexCount) + Section.SoftVertices[1].Position.ToString();
+			
+		int32 MaterialIndex = GetMaterialIndexLambda(LOD0,0,SectionIndex);
+		UMaterialInterface* MaterialInterface = LOD0->GetMaterials()[MaterialIndex].MaterialInterface;
+            
+			
+		LOD0Map.Add(String, MaterialInterface);
+	}
+
+	//迁移材质
 	TArray<FSkelMeshSection> SKMSections = ImportedModel->LODModels[0].Sections;
 	TArray<int32>& SKMMaterialMap = SkeletalMesh->GetLODInfo(0)->LODMaterialMap;
 	
@@ -318,6 +306,7 @@ bool UMeshLODWidget::SetCustomLOD(USkeletalMesh* DestinationSkeletalMesh, USkele
 		{
 			// Fix up the imported data bone indexes
 			FSkeletalMeshImportData LODImportData;
+			//SourceSkeletalMesh->GetMeshDescription()
 			SourceSkeletalMesh->LoadLODImportedData(SourceLODIndex, LODImportData);
 			const int32 LODImportDataBoneNumber = LODImportData.RefBonesBinary.Num();
 			//We want to create a remap array so we can fix all influence easily
