@@ -43,7 +43,14 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void RemoveEmptyMaterialSlot(USkeletalMesh* SkeletalMesh);
-	
+
+	/* Delete */
+	UFUNCTION(BlueprintCallable)
+	void ReplaceSKMReferences(UObject* Source, UObject* Dest);
+
+	UFUNCTION(BlueprintCallable)
+	void FixUpRedirector(USkeletalMesh* LOD0);
+private:
 	bool SetCustomLOD(USkeletalMesh* DestinationSkeletalMesh, USkeletalMesh* SourceSkeletalMesh, const int32 LodIndex, const int32 SrcLodIndex,const FString& SourceDataFilename);
 	
 	
