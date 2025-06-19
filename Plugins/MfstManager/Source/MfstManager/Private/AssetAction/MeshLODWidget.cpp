@@ -382,11 +382,103 @@ void UMeshLODWidget::ReplaceSKMReferences(UObject* Source, UObject* Dest)
 	//UEditorLoadingAndSavingUtils::SavePackages(ObjectPtrDecay(ConsResults.DirtiedPackages), false);
 }
 
-void UMeshLODWidget::FixUpRedirector(USkeletalMesh* LOD0)
+void UMeshLODWidget::FixUpRedirectorInAssetsFolder(TArray<UObject*> Assets)
 {
+	#define LOCTEXT_NAMESPACE "FixUpRedirectorInAssetFolder"
+	TArray<FString> SelectedPaths;
+	//DebugUtil::Print( FPaths::GetPath(Asset->GetPathName()));
+	for(UObject* Asset : Assets)
+	{
+		SelectedPaths.Add(FPaths::GetPath(Asset->GetPathName()));
+	}
+	
+	TArray<FString> SelectedPackages;
+	//SelectedPackages.Add(Asset->GetPackage()->GetName());
+
+	
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+	// Form a filter from the paths
 	FARFilter Filter;
-	Filter.bRecursivePaths = true;    //是否递归搜索路径,也就是是否搜索子路径
-	Filter.PackagePaths.Emplace("/Game");
+	Filter.bRecursivePaths = true;
+
+	Filter.PackagePaths.Reserve(SelectedPaths.Num());
+	for (const FString& Path : SelectedPaths)
+	{
+		Filter.PackagePaths.Emplace(*Path);
+	}
+
+	if (!SelectedPaths.IsEmpty())
+	{
+		Filter.ClassPaths.Add(UObjectRedirector::StaticClass()->GetClassPathName());
+	}
+	
+	// Query for a list of assets in the selected paths
+	TArray<FAssetData> AssetList;
+	AssetRegistryModule.Get().GetAssets(Filter, AssetList);
+
+	Filter.Clear();
+
+	Filter.PackageNames.Reserve(SelectedPackages.Num());
+	for (const FString& PackageName : SelectedPackages)
+	{
+		Filter.PackageNames.Emplace(*PackageName);
+	}
+
+	if (!SelectedPackages.IsEmpty())
+	{
+		Filter.ClassPaths.Add(UObjectRedirector::StaticClass()->GetClassPathName());
+	}
+
+	AssetRegistryModule.Get().GetAssets(Filter, AssetList);
+
+	if (AssetList.Num() == 0)
+	{
+		return;
+	}
+
+	FScopedSlowTask SlowTask(3, LOCTEXT("FixupRedirectorsSlowTask", "Fixing up redirectors"));
+	SlowTask.MakeDialog(true);
+
+	SlowTask.EnterProgressFrame(1, LOCTEXT("FixupRedirectors_LoadAssets", "Loading Assets..."));
+	TArray<UObject*> Objects;
+	AssetViewUtils::FLoadAssetsSettings Settings{
+		.bFollowRedirectors = false,
+		.bAllowCancel = true,
+	};
+	AssetViewUtils::ELoadAssetsResult Result = AssetViewUtils::LoadAssetsIfNeeded(AssetList, Objects, Settings);
+	if (Result != AssetViewUtils::ELoadAssetsResult::Cancelled && !SlowTask.ShouldCancel())
+	{
+		TArray<UObjectRedirector*> Redirectors;
+		for (UObject* Object : Objects)
+		{
+			if (UObjectRedirector* Redirector = Cast<UObjectRedirector>(Object))
+			{
+				Redirectors.Add(Redirector);
+			}
+		}
+
+		SlowTask.EnterProgressFrame(1, LOCTEXT("FixupRedirectors_FixupReferencers", "Fixing up referencers..."));
+		// Load the asset tools module
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+		AssetToolsModule.Get().FixupReferencers(Redirectors, false, ERedirectFixupMode::DeleteFixedUpRedirectors);
+	}
+}
+
+void UMeshLODWidget::FixUpRedirector(TArray<UObject*> InRedirectors)
+{
+	TArray<UObjectRedirector*> Redirectors;
+	for (UObject* Object : InRedirectors)
+	{
+		if (UObjectRedirector* Redirector = Cast<UObjectRedirector>(Object))
+		{
+			Redirectors.Add(Redirector);
+		}
+	}
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+	AssetToolsModule.Get().FixupReferencers(Redirectors, true, ERedirectFixupMode::PromptForDeletingRedirectors);
+
+	//ObjectTools::DeleteObjects(InRedirectors, false);
 }
 
 
