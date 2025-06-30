@@ -37,7 +37,15 @@ public class MfstManager : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"Slate",
-				"SlateCore", "SceneOutliner" , "Foliage" ,"PropertyEditor", "SkeletalMeshUtilitiesCommon", "ClothingSystemRuntimeCommon", "MeshDescription","AssetTools", 
+				"SlateCore",
+				"SceneOutliner" , 
+				"Foliage" ,
+				"PropertyEditor", 
+				"SkeletalMeshUtilitiesCommon", 
+				"ClothingSystemRuntimeCommon", 
+				"MeshDescription",
+				"AssetTools", 
+				"Paper2D", 
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
