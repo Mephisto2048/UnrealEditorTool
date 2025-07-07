@@ -4,6 +4,7 @@
 #include "AssetAction/CollisionCheckWidget.h"
 
 #include "PaperSprite.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
 bool UCollisionCheckWidget::CheckFXCollision(UObject* Object)

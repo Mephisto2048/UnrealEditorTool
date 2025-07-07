@@ -15,7 +15,10 @@ class MFSTMANAGER_API UMeshLODWidget : public UEditorUtilityWidget
 	GENERATED_BODY()
 public:
 	UFUNCTION(BlueprintCallable)
-	void InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh,USkeletalMesh* LOD0);
+	void FillEmptyMaterialSlots(USkeletalMesh* SkeletalMesh);
+	
+	UFUNCTION(BlueprintCallable)
+	FString InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh,USkeletalMesh* LOD0);
 	
 	UFUNCTION(BlueprintCallable)
 	void SetCustomLOD(USkeletalMesh* SkeletalMesh,USkeletalMesh* LOD0);

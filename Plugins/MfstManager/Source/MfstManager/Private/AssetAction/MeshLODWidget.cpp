@@ -23,7 +23,20 @@
 #include "AssetViewUtils.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
-void UMeshLODWidget::InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh, USkeletalMesh* LOD0)
+void UMeshLODWidget::FillEmptyMaterialSlots(USkeletalMesh* SkeletalMesh)
+{
+	TArray<FSkeletalMaterial>& MaterialSlots = SkeletalMesh->GetMaterials();
+
+	UMaterialInterface* Material = Cast<UMaterialInterface>(StaticLoadObject(UMaterialInterface::StaticClass(), nullptr, TEXT("/Engine/EngineMaterials/DefaultMaterial")));
+	
+	for(FSkeletalMaterial& MaterialSlot : MaterialSlots)
+	{
+		if(MaterialSlot.MaterialInterface == nullptr) MaterialSlot.MaterialInterface = Material;
+	}
+	SkeletalMesh->PostEditChange();
+}
+
+FString UMeshLODWidget::InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh, USkeletalMesh* LOD0)
 {
 	FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
 	int32 LODNum = ImportedModel->LODModels.Num();
@@ -69,7 +82,7 @@ void UMeshLODWidget::InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh, USkelet
 		}
 		return SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
 	};
-	TMap<FString, UMaterialInterface*> LOD0Map;
+	TMap<FVector3f, UMaterialInterface*> LOD0Map;
         
 	const FSkeletalMeshLODModel& LODModel = LOD0->GetImportedModel()->LODModels[0];
         
@@ -78,13 +91,19 @@ void UMeshLODWidget::InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh, USkelet
 		const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
 		int32 VertexCount = Section.GetNumVertices();
 
-		FString String = FString::FromInt(VertexCount) + Section.SoftVertices[1].Position.ToString();
-			
+		//FString String = FString::FromInt(VertexCount) + Section.SoftVertices[1].Position.ToString();
+		FVector3f VertPosition = Section.SoftVertices[1].Position;
+		
 		int32 MaterialIndex = GetMaterialIndexLambda(LOD0,0,SectionIndex);
 		UMaterialInterface* MaterialInterface = LOD0->GetMaterials()[MaterialIndex].MaterialInterface;
-            
+		
+		if(!MaterialInterface)
+		{
+			UMaterialInterface* DefaultMaterial = Cast<UMaterialInterface>(StaticLoadObject(UMaterialInterface::StaticClass(), nullptr, TEXT("/Engine/EngineMaterials/DefaultMaterial")));
+			MaterialInterface = DefaultMaterial;
+		}
 			
-		LOD0Map.Add(String, MaterialInterface);
+		LOD0Map.Add(VertPosition, MaterialInterface);
 	}
 
 	//迁移材质
@@ -93,11 +112,28 @@ void UMeshLODWidget::InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh, USkelet
 	
 	for (int i = 0;i < SKMSections.Num(); i++)
 	{
-		int32 VertNum = SKMSections[i].GetNumVertices();
-		FString String = FString::FromInt(VertNum) + SKMSections[i].SoftVertices[1].Position.ToString();
+		//int32 VertNum = SKMSections[i].GetNumVertices();
+		//FString String = FString::FromInt(VertNum) + SKMSections[i].SoftVertices[1].Position.ToString();
+		FVector3f VertPosition = SKMSections[i].SoftVertices[1].Position;
+		UMaterialInterface* Material = LOD0Map.FindRef(VertPosition);
 		
-		UMaterialInterface* Material = LOD0Map.FindRef(String);
-
+		if(!Material)
+		{
+			for (const TPair<FVector3f, UMaterialInterface*>& Pair : LOD0Map)
+			{
+				// 计算差异
+				FVector3f Difference = Pair.Key - VertPosition;
+				float Length = Difference.Length();
+				// 找到最小差异的键
+				if (Length < 0.005f)
+				{
+				
+					Material = Pair.Value;
+				}
+			}
+		}
+		
+		
 		FName SlotName = Material->GetFName();
 		
 		FSkeletalMaterial SkeletalMaterial = FSkeletalMaterial(Material,SlotName);
@@ -123,8 +159,6 @@ void UMeshLODWidget::InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh, USkelet
 			USkeletalMesh* SkeletalMeshPtr = SkeletalMesh;
 			SkeletalMeshPtr->GetMaterials().RemoveAt(i);
 			FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
-
-			
 
 			//When we delete a material slot we need to fix all MaterialIndex after the deleted index
 			TArray<int32>& LODMaterialMap = SkeletalMeshPtr->GetLODInfo(0)->LODMaterialMap;
@@ -153,6 +187,7 @@ void UMeshLODWidget::InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh, USkelet
 	}
 	
 	SkeletalMesh->PostEditChange();
+	return TEXT("");
 }
 
 void UMeshLODWidget::SetCustomLOD(USkeletalMesh* SkeletalMesh, USkeletalMesh* LOD0)
