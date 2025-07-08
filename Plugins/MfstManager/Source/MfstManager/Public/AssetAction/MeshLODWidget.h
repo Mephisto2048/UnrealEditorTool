@@ -47,6 +47,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void RemoveEmptyMaterialSlot(USkeletalMesh* SkeletalMesh);
 
+	UFUNCTION(BlueprintCallable)
+	void RemoveSkeletalMeshLOD(USkeletalMesh* SkeletalMesh,int32 LODIndex);
+
+	UFUNCTION(BlueprintCallable)
+	void RemoveUnusedMaterialSlot(USkeletalMesh* SkeletalMesh);
+	
 	/* Delete */
 	UFUNCTION(BlueprintCallable)
 	void ReplaceSKMReferences(UObject* Source, UObject* Dest);

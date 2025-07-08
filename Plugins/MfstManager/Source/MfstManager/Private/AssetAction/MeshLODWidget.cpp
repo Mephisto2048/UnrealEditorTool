@@ -21,12 +21,13 @@
 #include <AssetToolsModule.h>
 
 #include "AssetViewUtils.h"
+#include "Animation/DebugSkelMeshComponent.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-
+#define LOCTEXT_NAMESPACE "PersonaMeshDetails"
 void UMeshLODWidget::FillEmptyMaterialSlots(USkeletalMesh* SkeletalMesh)
 {
 	TArray<FSkeletalMaterial>& MaterialSlots = SkeletalMesh->GetMaterials();
-
+	
 	UMaterialInterface* Material = Cast<UMaterialInterface>(StaticLoadObject(UMaterialInterface::StaticClass(), nullptr, TEXT("/Engine/EngineMaterials/DefaultMaterial")));
 	
 	for(FSkeletalMaterial& MaterialSlot : MaterialSlots)
@@ -346,9 +347,7 @@ void UMeshLODWidget::RemoveEmptyMaterialSlot(USkeletalMesh* SkeletalMesh)
 			USkeletalMesh* SkeletalMeshPtr = SkeletalMesh;
 			SkeletalMeshPtr->GetMaterials().RemoveAt(i);
 			FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
-
 			
-
 			//When we delete a material slot we need to fix all MaterialIndex after the deleted index
 			TArray<int32>& LODMaterialMap = SkeletalMeshPtr->GetLODInfo(0)->LODMaterialMap;
 			for (int32 SectionIndex = 0; SectionIndex < Model->LODModels[0].Sections.Num(); ++SectionIndex)
@@ -374,6 +373,130 @@ void UMeshLODWidget::RemoveEmptyMaterialSlot(USkeletalMesh* SkeletalMesh)
 		}
 		
 	}
+	SkeletalMesh->PostEditChange();
+}
+
+void UMeshLODWidget::RemoveSkeletalMeshLOD(USkeletalMesh* SkeletalMesh,int32 LODIndex)
+{
+	USkeletalMesh* SkelMesh = SkeletalMesh;
+	check(SkelMesh);
+	check(SkelMesh->IsValidLODIndex(LODIndex));
+	TArray<FSkelMeshSection>& Sections = SkeletalMesh->GetImportedModel()->LODModels[0].Sections;
+	
+	if (LODIndex >= 0)
+	{
+		FText RemoveLODText = FText::Format(LOCTEXT("OnPersonaRemoveLOD", "Persona editor: Remove LOD {0}"), LODIndex);
+		FScopedTransaction Transaction(TEXT(""), RemoveLODText, SkelMesh);
+		SkelMesh->Modify();
+
+		FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
+		//PostEditChange scope
+		{
+			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
+				
+			FSkeletalMeshUpdateContext UpdateContext;
+			UpdateContext.SkeletalMesh = SkelMesh;
+			//UpdateContext.AssociatedComponents.Push(GetPersonaToolkit()->GetPreviewMeshComponent());
+
+			FLODUtilities::RemoveLOD(UpdateContext, LODIndex);
+
+			if (SkelMesh->GetLODSettings())
+			{
+				SkelMesh->GetLODSettings()->SetLODSettingsToMesh(SkelMesh);
+			}
+		}
+	}
+
+	
+	
+}
+
+void UMeshLODWidget::RemoveUnusedMaterialSlot(USkeletalMesh* SkeletalMesh)
+{
+	TWeakObjectPtr<USkeletalMesh> SkeletalMeshPtr = SkeletalMesh;
+	//int32 TotalMaterialNum = SkeletalMesh->GetMaterials().Num();
+	auto IsMaterialUsed = [this](USkeletalMesh* SkeletalMesh, int32 MaterialIndex) -> bool
+	{
+		if (SkeletalMesh == nullptr)
+		{
+			return false; // 如果SkeletalMesh无效，直接返回false
+		}
+
+		const int32 MaterialCount = SkeletalMesh->GetMaterials().Num();
+		if (MaterialIndex < 0 || MaterialIndex >= MaterialCount)
+		{
+			return false; // 如果MaterialIndex不合法，返回false
+		}
+
+		// 获取模型
+		FSkeletalMeshModel* ImportedResource = SkeletalMesh->GetImportedModel();
+		if (!ImportedResource)
+		{
+			return false; // 如果无法获取到模型，返回false
+		}
+
+		// 遍历LOD和Section
+		for (int32 LODIndex = 0; LODIndex < ImportedResource->LODModels.Num(); ++LODIndex)
+		{
+			FSkeletalMeshLODInfo& Info = *(SkeletalMesh->GetLODInfo(LODIndex));
+        
+			for (int32 SectionIndex = 0; SectionIndex < ImportedResource->LODModels[LODIndex].Sections.Num(); ++SectionIndex)
+			{
+				if (GetMaterialIndex(SkeletalMesh,LODIndex, SectionIndex) == MaterialIndex)
+				{
+					return true; // 找到材质被使用，返回true
+				}
+			}
+		}
+
+		return false; // 如果没有找到该材质被使用，返回false
+	};
+	for(int i = SkeletalMesh->GetMaterials().Num()-1;i>0;i--)
+	{
+		int32 MaterialIndex = i;
+		
+		if(IsMaterialUsed(SkeletalMesh,MaterialIndex)) continue;
+		
+		SkeletalMeshPtr->Modify();
+		{
+			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMeshPtr.Get());
+			//When we delete a material slot we must invalidate the DDC because material index is not part of the DDC key by design
+			SkeletalMeshPtr->InvalidateDeriveDataCacheGUID();
+
+			SkeletalMeshPtr->GetMaterials().RemoveAt(MaterialIndex);
+			FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
+
+			int32 NumLODInfos = SkeletalMeshPtr->GetLODNum();
+
+			//When we delete a material slot we need to fix all MaterialIndex after the deleted index
+			for (int32 LODInfoIdx = 0; LODInfoIdx < NumLODInfos; LODInfoIdx++)
+			{
+				TArray<FSkelMeshSection>& Sections = Model->LODModels[LODInfoIdx].Sections;
+				TArray<int32>& LODMaterialMap = SkeletalMeshPtr->GetLODInfo(LODInfoIdx)->LODMaterialMap;
+				for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
+				{
+					int32 SectionMaterialIndex = Sections[SectionIndex].MaterialIndex;
+					if (LODMaterialMap.IsValidIndex(SectionIndex) && LODMaterialMap[SectionIndex] != INDEX_NONE)
+					{
+						SectionMaterialIndex = LODMaterialMap[SectionIndex];
+					}
+					if (SectionMaterialIndex > MaterialIndex)
+					{
+						SectionMaterialIndex--;
+						//Patch the lod material map
+						while (!LODMaterialMap.IsValidIndex(SectionIndex))
+						{
+							LODMaterialMap.Add(INDEX_NONE);
+						}
+						LODMaterialMap[SectionIndex] = SectionMaterialIndex;
+						Sections[SectionIndex].MaterialIndex--;
+					}
+				}
+			}
+		}
+		
+	}
+	
 	SkeletalMesh->PostEditChange();
 }
 
