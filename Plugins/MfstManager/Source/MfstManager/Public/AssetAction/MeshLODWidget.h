@@ -21,6 +21,9 @@ public:
 	FString InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh,USkeletalMesh* LOD0);
 	
 	UFUNCTION(BlueprintCallable)
+	void InterchangeImportLod(USkeletalMesh* SkeletalMesh,USkeletalMesh* LOD0);
+	
+	UFUNCTION(BlueprintCallable)
 	void SetCustomLOD(USkeletalMesh* SkeletalMesh,USkeletalMesh* LOD0);
 	
 	UFUNCTION(BlueprintCallable)

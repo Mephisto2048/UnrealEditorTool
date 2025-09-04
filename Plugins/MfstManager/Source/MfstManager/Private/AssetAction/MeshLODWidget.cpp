@@ -21,6 +21,9 @@
 #include <AssetToolsModule.h>
 
 #include "AssetViewUtils.h"
+#include "InterchangeManager.h"
+#include "InterchangeMeshUtilities.h"
+#include "SkinWeightsUtilities.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #define LOCTEXT_NAMESPACE "PersonaMeshDetails"
@@ -186,9 +189,27 @@ FString UMeshLODWidget::InsertSkeletalMeshLODs(USkeletalMesh* SkeletalMesh, USke
 		}
 		
 	}
+
+	//If we use alternate skinweight, we must re-import all profile for this LOD
+	if (SkeletalMesh && !SkeletalMesh->GetSkinWeightProfiles().IsEmpty())
+	{
+		//Enqueue the re-import alternate skinning
+		TSharedPtr<FInterchangeSkeletalMeshAlternateSkinWeightPostImportTask> SkeletalMeshPostImportTask = MakeShared<FInterchangeSkeletalMeshAlternateSkinWeightPostImportTask>(SkeletalMesh);
+		SkeletalMeshPostImportTask->ReimportAlternateSkinWeightDelegate.BindLambda([](USkeletalMesh* SkeletalMesh, int32 LodIndex)
+			{
+				return FSkinWeightsUtilities::ReimportAlternateSkinWeight(SkeletalMesh, LodIndex);
+			});
+		SkeletalMeshPostImportTask->AddLodToReimportAlternate(0);
+		UInterchangeManager::GetInterchangeManager().EnqueuePostImportTask(SkeletalMeshPostImportTask);
+	}
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostLODImport(SkeletalMesh, 0);
 	
 	SkeletalMesh->PostEditChange();
 	return TEXT("");
+}
+
+void UMeshLODWidget::InterchangeImportLod(USkeletalMesh* SkeletalMesh, USkeletalMesh* LOD0)
+{
 }
 
 void UMeshLODWidget::SetCustomLOD(USkeletalMesh* SkeletalMesh, USkeletalMesh* LOD0)

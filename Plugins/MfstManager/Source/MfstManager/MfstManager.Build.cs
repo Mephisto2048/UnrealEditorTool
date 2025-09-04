@@ -46,6 +46,7 @@ public class MfstManager : ModuleRules
 				"MeshDescription",
 				"AssetTools", 
 				"Paper2D", 
+				"InterchangeEngine"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
